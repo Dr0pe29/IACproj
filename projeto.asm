@@ -25,6 +25,9 @@ DEFINE_PIXEL    EQU COMANDOS + 12H		; endereço do comando para escrever um pixe
 APAGA_AVISO     EQU COMANDOS + 40H		; endereço do comando para apagar o aviso de nenhum cenário selecionado
 APAGA_ECRÃ	 	EQU COMANDOS + 02H		; endereço do comando para apagar todos os pixels já desenhados
 SELECIONA_CENARIO_FUNDO  EQU COMANDOS + 42H		; endereço do comando para selecionar uma imagem de fundo
+SELECIONA_SOM  EQU COMANDOS + 48H     ; endereço do comando para selecionar um som
+REPRODUZ_SOM EQU COMANDOS + 5AH         ; endereço do comando para reproduzir o som selecionado
+
 
 VERMELHO        EQU 0FF00H      ; cor do pixel vermelho
 VERDE           EQU 0F0F0H      ; cor do pixel verde
@@ -42,6 +45,13 @@ DEF_ASTEROIDE_MINERAVEL:    ; tabela que define o asteroide mineravel
     WORD		VERDE, VERDE, VERDE, VERDE, VERDE
     WORD		0, VERDE, VERDE, VERDE, 0
 
+DEF_PAINEL_INSTRUMENTOS:    ; tabela que define o painel de instrumentos
+    WORD        15, 5
+    WORD        0, 0, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, 0, 0
+    WORD        0, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, 0
+    WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
+    WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
+    WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
 ; **********************************************************************
 ; * Código
 ; **********************************************************************
@@ -59,6 +69,8 @@ MOV  [APAGA_AVISO], R1	; apaga o aviso de nenhum cenário selecionado (o valor d
 MOV  [APAGA_ECRÃ], R1	; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
 MOV	  R1, 0			    ; cenário de fundo número 0
 MOV  [SELECIONA_CENARIO_FUNDO], R1	; seleciona o cenário de fundo
+MOV [LINHA_ASTEROIDE], R1
+MOV [COLUNA_ASTEROIDE], R1
 
 dados_asteroide:          	
 	MOV	R0, DEF_ASTEROIDE_MINERAVEL	; endereço da tabela que define o asteroide
@@ -66,6 +78,11 @@ dados_asteroide:
     MOV R2, [COLUNA_ASTEROIDE]      ; coluna da posição do asteroide
     CALL desenha_boneco
 
+desenhar_painel:            
+    MOV R0, DEF_PAINEL_INSTRUMENTOS ; endereço da tabela que define o painel
+    MOV R1, 27                      ; linha do canto superior esquerdo
+    MOV R2, 25                      ; coluna do canto superior esquerdo
+    CALL desenha_boneco
 inicio:		
 
 ; inicializações
@@ -294,6 +311,8 @@ comando_move_asteroide:
     MOV [LINHA_ASTEROIDE], R1
     MOV [COLUNA_ASTEROIDE], R2
     CALL desenha_boneco
+    MOV R0, 0
+    MOV [REPRODUZ_SOM], R0
     JMP  comando_ret
 
 comando_ret:
