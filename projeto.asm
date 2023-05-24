@@ -17,6 +17,8 @@ MASCARA_0F       EQU 0FH     ; para isolar os 4 bits de menor peso
 VALOR_DISPLAY    EQU 2000H   ; endereço do valor do display
 LINHA_ASTEROIDE  EQU 2002H   ; endereço do valor da linha do pixel-posição do asteroide
 COLUNA_ASTEROIDE EQU 2004H   ; endereço do valor da coluna do pixel-posição do asteroide
+LINHA_SONDA	 EQU 2006H   ; endereço do valor da linha do pixel-posição da sonda
+COLUNA_SONDA	 EQU 2008H   ; endereço do valor da coluna do pixel-posição da sonda
 
 COMANDOS		EQU	6000H	; endereço de base dos comandos do MediaCenter
 DEFINE_LINHA    EQU COMANDOS + 0AH		; endereço do comando para definir a linha
@@ -32,9 +34,13 @@ REPRODUZ_SOM EQU COMANDOS + 5AH         ; endereço do comando para reproduzir o
 VERMELHO        EQU 0FF00H      ; cor do pixel vermelho
 VERDE           EQU 0F0F0H      ; cor do pixel verde
 AZUL            EQU 0F00FH      ; cor do pixel azul
+AMARELO		EQU 0FFF0H	; cor do pixel amarelo
+
+
 ; #######################################################################
 ;  ZONA DE DADOS 
 ; #######################################################################
+
 	PLACE		3000H				
 
 DEF_ASTEROIDE_MINERAVEL:    ; tabela que define o asteroide mineravel
@@ -45,6 +51,10 @@ DEF_ASTEROIDE_MINERAVEL:    ; tabela que define o asteroide mineravel
     WORD		VERDE, VERDE, VERDE, VERDE, VERDE
     WORD		0, VERDE, VERDE, VERDE, 0
 
+DEF_SONDA:					; tabela que define a sonda
+	WORD		1, 1
+	WORD	    AMARELO
+
 DEF_PAINEL_INSTRUMENTOS:    ; tabela que define o painel de instrumentos
     WORD        15, 5
     WORD        0, 0, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, 0, 0
@@ -52,6 +62,7 @@ DEF_PAINEL_INSTRUMENTOS:    ; tabela que define o painel de instrumentos
     WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
     WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
     WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
+    
 ; **********************************************************************
 ; * Código
 ; **********************************************************************
@@ -71,11 +82,21 @@ MOV	  R1, 0			    ; cenário de fundo número 0
 MOV  [SELECIONA_CENARIO_FUNDO], R1	; seleciona o cenário de fundo
 MOV [LINHA_ASTEROIDE], R1
 MOV [COLUNA_ASTEROIDE], R1
+MOV	 R1, 26
+MOV  [LINHA_SONDA], R1
+MOV  R1, 32
+MOV  [COLUNA_SONDA], R1
 
 dados_asteroide:          	
 	MOV	R0, DEF_ASTEROIDE_MINERAVEL	; endereço da tabela que define o asteroide
     MOV R1, [LINHA_ASTEROIDE]       ; linha da posição do asteroide
     MOV R2, [COLUNA_ASTEROIDE]      ; coluna da posição do asteroide
+    CALL desenha_boneco
+
+dados_sonda:          	
+	MOV	R0, DEF_SONDA			; endereço da tabela que define o asteroide
+    MOV R1, [LINHA_SONDA]       ; linha da posição do asteroide
+    MOV R2, [COLUNA_SONDA]      ; coluna da posição do asteroide
     CALL desenha_boneco
 
 desenhar_painel:            
@@ -285,6 +306,8 @@ comando_inicio:
     JZ   comando_diminui_display
     CMP  R6, 2
     JZ   comando_move_asteroide
+    CMP  R6, 3
+    JZ   comando_move_sonda
     JMP  comando_ret    
     
 comando_aumenta_display:
@@ -313,6 +336,17 @@ comando_move_asteroide:
     CALL desenha_boneco
     MOV R0, 0
     MOV [REPRODUZ_SOM], R0
+    JMP  comando_ret
+    
+comando_move_sonda:
+    MOV R0, DEF_SONDA
+    MOV R1, [LINHA_SONDA]
+    MOV R2, [COLUNA_SONDA]
+    CALL apaga_boneco
+    SUB R1, 1
+    MOV [LINHA_SONDA], R1
+    MOV [COLUNA_SONDA], R2
+    CALL desenha_boneco
     JMP  comando_ret
 
 comando_ret:
