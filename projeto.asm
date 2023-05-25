@@ -219,6 +219,10 @@ desenha_boneco:
     ; R0 - endereço
     ; R1 - linha
     ; R2 - coluna
+    ; R3 - contador da largura
+    ; R4 - contador da altura
+    ; R5 - cor do pixel
+    ; R6 - posição inicial
 
 desenha_boneco_init:
     PUSH R0
@@ -231,10 +235,10 @@ desenha_boneco_init:
 
     MOV R6, R2              ; guarda a primeira coluna do boneco
     MOV	R3, [R0]			; obtém a largura do boneco
-    ADD R3, R2
-	ADD	R0, 2			    
+    ADD R3, R2              ; adiciona a coluna da posição do boneco à largura
+	ADD	R0, 2			    ; próxima posição na tabela (Altura)
     MOV R4, [R0]            ; obtém a altura do boneco
-    ADD R4, R1
+    ADD R4, R1              ; adiciona a linha da posição do boneco à altura
     ADD R0, 2
 
 desenha_boneco_linha:
@@ -263,7 +267,13 @@ desenha_boneco_ret:
 
 
 ; #######################################################################
-;  ROTINA - apaga_boneco
+; APAGA_BONECO - apaga um boneco a partir da sua tabela definida
+;                  nos dados
+;
+; Argumentos:   
+;             R0 - endereço
+;             R1 - linha
+;             R2 - coluna
 ; #######################################################################    
 
 
@@ -271,6 +281,10 @@ apaga_boneco:       		; apaga o boneco a partir da tabela
     ; R0 - endereço
     ; R1 - linha
     ; R2 - coluna
+    ; R3 - contador da largura
+    ; R4 - contador da altura
+    ; R5 - pixel transparente
+    ; R6 - posição inicial
 
 apaga_boneco_init:
     PUSH R0
@@ -283,13 +297,13 @@ apaga_boneco_init:
 
     MOV R6, R2              ; guarda a primeira coluna do boneco
     MOV	R3, [R0]			; obtém a largura do boneco
-    ADD R3, R2
-	ADD	R0, 2			    
+    ADD R3, R2              ; adiciona a coluna da posição do boneco à largura
+	ADD	R0, 2			    ; próxima posição na tabela (Altura)
     MOV R4, [R0]            ; obtém a altura do boneco
-    ADD R4, R1
+    ADD R4, R1              ; adiciona a linha da posição do boneco à altura
 
 apaga_boneco_linha:
-	MOV	R5, 0			; obtém a cor do próximo pixel do boneco
+	MOV	R5, 0			    ; obtém a cor do próximo pixel do boneco
 	MOV [DEFINE_LINHA], R1	; seleciona a linha
 	MOV [DEFINE_COLUNA], R2	; seleciona a coluna
 	MOV [DEFINE_PIXEL], R5	; altera a cor do pixel na linha e coluna selecionadas
@@ -313,65 +327,72 @@ apaga_boneco_ret:
 
 
 ; #######################################################################
-;  ROTINA - comando
-; #######################################################################    
+; COMANDO - executa a ação correspondente ao input
+;                 
+;
+; Argumentos:   
+;             R6 - input
+; #######################################################################   
 
 
 comando:
-; R6 - comando
+; R6 - input
 
-comando_inicio:
+comando_inicio: 
+
+; redireciona para a ação correspondente ao input
+
     PUSH R0
     PUSH R1
     PUSH R2
 
     CMP  R6, 0
-    JZ   comando_aumenta_display
+    JZ   comando_aumenta_display    ; input = 0 -> Aumenta o display em 1 unidade
     CMP  R6, 1
-    JZ   comando_diminui_display
+    JZ   comando_diminui_display    ; input = 1 -> Diminui o display em 1 unidade
     CMP  R6, 2
-    JZ   comando_move_asteroide
+    JZ   comando_move_asteroide     ; input = 2 -> Move o asteróide
     CMP  R6, 3
-    JZ   comando_move_sonda
-    JMP  comando_ret    
+    JZ   comando_move_sonda         ; input = 3 -> Move a sonda
+    JMP  comando_ret                
     
 comando_aumenta_display:
-    MOV  R1, [VALOR_DISPLAY]
-    INC  R1
-    MOV  [VALOR_DISPLAY], R1
-    MOV  [R4], R1
+    MOV  R1, [VALOR_DISPLAY]    ; Obtém o valor atual do display
+    INC  R1                     ; Adiciona 1 a esse valor
+    MOV  [VALOR_DISPLAY], R1    ; Altera o valor na memória
+    MOV  [R4], R1               ; Altera o valor no display
     JMP  comando_ret
 
 comando_diminui_display:
-    MOV  R1, [VALOR_DISPLAY]
-    SUB  R1, 1
-    MOV  [VALOR_DISPLAY], R1
-    MOV  [R4], R1
+    MOV  R1, [VALOR_DISPLAY]    ; Obtém o valor atual do display
+    SUB  R1, 1                  ; Subtrai 1 a esse valor
+    MOV  [VALOR_DISPLAY], R1    ; Altera o valor na memória
+    MOV  [R4], R1               ; Altera o valor no display
     JMP  comando_ret
 
 comando_move_asteroide:
-    MOV R0, DEF_ASTEROIDE_MINERAVEL
-    MOV R1, [LINHA_ASTEROIDE]
-    MOV R2, [COLUNA_ASTEROIDE]
-    CALL apaga_boneco
-    INC R1
+    MOV R0, DEF_ASTEROIDE_MINERAVEL     ; Obtém o endereço do asteróide
+    MOV R1, [LINHA_ASTEROIDE]           ; Obtém a sua posição (linha)
+    MOV R2, [COLUNA_ASTEROIDE]          ; Obtém a sua posição (coluna)
+    CALL apaga_boneco                   ; Rotina para apagar o boneco
+    INC R1                              ; Incremento da sua posição (1 na diagonal)
     INC R2
-    MOV [LINHA_ASTEROIDE], R1
+    MOV [LINHA_ASTEROIDE], R1           ; Atualização da posição do asteróide na memória
     MOV [COLUNA_ASTEROIDE], R2
-    CALL desenha_boneco
+    CALL desenha_boneco                 ; Rotina para desenhar o boneco
     MOV R0, 0
-    MOV [REPRODUZ_SOM], R0
+    MOV [REPRODUZ_SOM], R0              ; Reproduz som
     JMP  comando_ret
     
 comando_move_sonda:
-    MOV R0, DEF_SONDA
-    MOV R1, [LINHA_SONDA]
-    MOV R2, [COLUNA_SONDA]
-    CALL apaga_boneco
-    SUB R1, 1
-    MOV [LINHA_SONDA], R1
+    MOV R0, DEF_SONDA       ; Obtém o endereço da sonda
+    MOV R1, [LINHA_SONDA]   ; Obtém a sua posição (linha)
+    MOV R2, [COLUNA_SONDA]  ; Obtém a sua posição (coluna)
+    CALL apaga_boneco       ; Rotina para apagar o boneco
+    SUB R1, 1               ; Sobe a posição 1 linha
+    MOV [LINHA_SONDA], R1   ; Atualização da posição da sonda na memória
     MOV [COLUNA_SONDA], R2
-    CALL desenha_boneco
+    CALL desenha_boneco     ; Rotina para desenhar o boneco
     JMP  comando_ret
 
 comando_ret:
