@@ -9,6 +9,7 @@
 ; **********************************************************************
 ; * Constantes
 ; **********************************************************************
+
 DISPLAYS         EQU 0A000H  ; endereço dos displays de 7 segmentos (periférico POUT-1)
 TEC_LIN          EQU 0C000H  ; endereço das linhas do teclado (periférico POUT-2)
 TEC_COL          EQU 0E000H  ; endereço das colunas do teclado (periférico PIN)
@@ -17,24 +18,24 @@ MASCARA_0F       EQU 0FH     ; para isolar os 4 bits de menor peso
 VALOR_DISPLAY    EQU 2000H   ; endereço do valor do display
 LINHA_ASTEROIDE  EQU 2002H   ; endereço do valor da linha do pixel-posição do asteroide
 COLUNA_ASTEROIDE EQU 2004H   ; endereço do valor da coluna do pixel-posição do asteroide
-LINHA_SONDA	 EQU 2006H   ; endereço do valor da linha do pixel-posição da sonda
+LINHA_SONDA	     EQU 2006H   ; endereço do valor da linha do pixel-posição da sonda
 COLUNA_SONDA	 EQU 2008H   ; endereço do valor da coluna do pixel-posição da sonda
 
-COMANDOS		EQU	6000H	; endereço de base dos comandos do MediaCenter
+COMANDOS		EQU	6000H	            ; endereço de base dos comandos do MediaCenter
 DEFINE_LINHA    EQU COMANDOS + 0AH		; endereço do comando para definir a linha
 DEFINE_COLUNA   EQU COMANDOS + 0CH		; endereço do comando para definir a coluna
 DEFINE_PIXEL    EQU COMANDOS + 12H		; endereço do comando para escrever um pixel
 APAGA_AVISO     EQU COMANDOS + 40H		; endereço do comando para apagar o aviso de nenhum cenário selecionado
 APAGA_ECRÃ	 	EQU COMANDOS + 02H		; endereço do comando para apagar todos os pixels já desenhados
 SELECIONA_CENARIO_FUNDO  EQU COMANDOS + 42H		; endereço do comando para selecionar uma imagem de fundo
-SELECIONA_SOM  EQU COMANDOS + 48H     ; endereço do comando para selecionar um som
+SELECIONA_SOM  EQU COMANDOS + 48H       ; endereço do comando para selecionar um som
 REPRODUZ_SOM EQU COMANDOS + 5AH         ; endereço do comando para reproduzir o som selecionado
 
 
 VERMELHO        EQU 0FF00H      ; cor do pixel vermelho
 VERDE           EQU 0F0F0H      ; cor do pixel verde
 AZUL            EQU 0F00FH      ; cor do pixel azul
-AMARELO		EQU 0FFF0H	; cor do pixel amarelo
+AMARELO		    EQU 0FFF0H	    ; cor do pixel amarelo
 
 
 ; #######################################################################
@@ -44,7 +45,7 @@ AMARELO		EQU 0FFF0H	; cor do pixel amarelo
 	PLACE		3000H				
 
 DEF_ASTEROIDE_MINERAVEL:    ; tabela que define o asteroide mineravel
-	WORD		5, 5
+	WORD		5, 5        ; largura e altura do asteroide
 	WORD		0, VERDE, VERDE, VERDE, 0
     WORD		VERDE, VERDE, VERDE, VERDE, VERDE
     WORD		VERDE, VERDE, VERDE, VERDE, VERDE
@@ -52,11 +53,11 @@ DEF_ASTEROIDE_MINERAVEL:    ; tabela que define o asteroide mineravel
     WORD		0, VERDE, VERDE, VERDE, 0
 
 DEF_SONDA:					; tabela que define a sonda
-	WORD		1, 1
+	WORD		1, 1        ; largura e altura da sonda
 	WORD	    AMARELO
 
 DEF_PAINEL_INSTRUMENTOS:    ; tabela que define o painel de instrumentos
-    WORD        15, 5
+    WORD        15, 5       ; largura e altura do painel de instrumentos
     WORD        0, 0, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, 0, 0
     WORD        0, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, 0
     WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
@@ -69,106 +70,121 @@ DEF_PAINEL_INSTRUMENTOS:    ; tabela que define o painel de instrumentos
 
 PLACE 1000H
 
+; inicialização da stack
+
 STACK 100H
 SP_init:
 
-PLACE      0
+PLACE 0 ; o código começa na posição 0
 
-MOV SP, SP_init
+inicializacoes:
+    MOV SP, SP_init
+    MOV  [APAGA_AVISO], R1	            ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
+    MOV  [APAGA_ECRÃ], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
+    MOV	  R1, 0			                ; cenário de fundo número 0
+    MOV  [SELECIONA_CENARIO_FUNDO], R1	; seleciona o cenário de fundo
+    MOV  [LINHA_ASTEROIDE], R1          ; inicializa a linha da posição do asteroide
+    MOV  [COLUNA_ASTEROIDE], R1         ; inicializa a coluna da posição do asteroide
+    MOV	 R1, 26                         ; valor da linha inicial da sonda
+    MOV  [LINHA_SONDA], R1              ; inicializa a linha da posição da sonda
+    MOV  R1, 32                         ; valor da coluna inicial da sonda
+    MOV  [COLUNA_SONDA], R1             ; inicializa a linha da posição da sonda
 
-MOV  [APAGA_AVISO], R1	; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
-MOV  [APAGA_ECRÃ], R1	; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
-MOV	  R1, 0			    ; cenário de fundo número 0
-MOV  [SELECIONA_CENARIO_FUNDO], R1	; seleciona o cenário de fundo
-MOV [LINHA_ASTEROIDE], R1
-MOV [COLUNA_ASTEROIDE], R1
-MOV	 R1, 26
-MOV  [LINHA_SONDA], R1
-MOV  R1, 32
-MOV  [COLUNA_SONDA], R1
-
-dados_asteroide:          	
+desenha_asteroide:          	
 	MOV	R0, DEF_ASTEROIDE_MINERAVEL	; endereço da tabela que define o asteroide
     MOV R1, [LINHA_ASTEROIDE]       ; linha da posição do asteroide
     MOV R2, [COLUNA_ASTEROIDE]      ; coluna da posição do asteroide
-    CALL desenha_boneco
+    CALL desenha_boneco             ; desenha o asteroide
 
-dados_sonda:          	
-	MOV	R0, DEF_SONDA			; endereço da tabela que define o asteroide
-    MOV R1, [LINHA_SONDA]       ; linha da posição do asteroide
-    MOV R2, [COLUNA_SONDA]      ; coluna da posição do asteroide
-    CALL desenha_boneco
+dsenha_sonda:          	
+	MOV	R0, DEF_SONDA			    ; endereço da tabela que define a sonda
+    MOV R1, [LINHA_SONDA]           ; linha da posição da sonda
+    MOV R2, [COLUNA_SONDA]          ; coluna da posição da sonda
+    CALL desenha_boneco             ; desenha a sonda
 
-desenhar_painel:            
+desenha_painel:            
     MOV R0, DEF_PAINEL_INSTRUMENTOS ; endereço da tabela que define o painel
-    MOV R1, 27                      ; linha do canto superior esquerdo
-    MOV R2, 25                      ; coluna do canto superior esquerdo
-    CALL desenha_boneco
-inicio:		
+    MOV R1, 27                      ; linha da posição do painel
+    MOV R2, 25                      ; coluna da posição do painel
+    CALL desenha_boneco             ; desenha o painel
 
-; inicializações
+teclado_inicio:		
 
-    MOV  R2, TEC_LIN   		; endereço do periférico das linhas
-    MOV  R3, TEC_COL   		; endereço do periférico das colunas
-    MOV  R4, DISPLAYS  		; endereço do periférico dos displays
-    MOV  R5, MASCARA_0F   	; para isolar os 4 bits de menor peso
+; inicializações do teclado
+
+    MOV  R2, TEC_LIN   		    ; endereço do periférico das linhas
+    MOV  R3, TEC_COL   		    ; endereço do periférico das colunas
+    MOV  R4, DISPLAYS  		    ; endereço do periférico dos displays
+    MOV  R5, MASCARA_0F   	    ; para isolar os 4 bits de menor peso
     MOV  R1, 0
-    MOV  [R4], R1
-    MOV  [VALOR_DISPLAY], R1
+    MOV  [R4], R1               ; mete os valores 000 nos displays
+    MOV  [VALOR_DISPLAY], R1    ; inicializa o valor dos displays a 0 na memória
 
 ; corpo principal do programa
 
-ciclo:
-    MOV R6, -1
-	MOV R1, LINHA     		; o ciclo começa na linha 4 (1000b)
+teclado_ciclo:
+    MOV R6, -1        ; valor que representa nenhuma tecla premida
+	MOV R1, LINHA     ; o ciclo começa na linha 4 (1000b)
 
-espera_tecla:				; neste ciclo espera-se até uma tecla ser premida
-	MOVB [R2], R1      		; escrever no periférico de saída (linhas)
-	MOVB R0, [R3]      		; ler do periférico de entrada (colunas)
-	AND  R0, R5        		; elimina bits para além dos bits 0-3
-	JNZ  tecla_premida 		; se uma tecla foi premida, avança
-	SHR  R1, 1        		; 
-	JNZ espera_tecla   		; se nenhuma tecla premida, repete para a próxima linha
-	MOV R1, LINHA      		; depois de percorrer a última linha restora o valor de R1 a 8 (1000b)
-	JMP espera_tecla   		; repete o ciclo
+teclado_espera_tecla:				; neste ciclo espera-se até uma tecla ser premida
+	MOVB [R2], R1      		        ; escrever no periférico de saída (linhas)
+	MOVB R0, [R3]      		        ; ler do periférico de entrada (colunas)
+	AND  R0, R5        		        ; elimina bits para além dos bits 0-3
+	JNZ  teclado_tecla_premida 		; verifica se alguma tecla foi premida
+	SHR  R1, 1        		        ; passa para a próxima linha
+	JNZ teclado_espera_tecla   		; verifica se a linha anula-se (0000b)
+	MOV R1, LINHA      	        	; restora o valor da linha a 8 (1000b)
+	JMP teclado_espera_tecla   		; repete o ciclo
 
-tecla_premida:	       		; vai mostrar a linha e a coluna da tecla
-	CALL conversao
-    CALL comando	
+teclado_tecla_premida:	       		
+	CALL conversao                  ; converte a linha e coluna da tecla premida para um só dígito hexadecimal
+    CALL comando	                ; executa o comando correspondente a tecla do teclado
     
-ha_tecla:              		; neste ciclo espera-se até NENHUMA tecla estar premida
-	MOVB [R2], R1      		; escrever no periférico de saída (linhas)
-	MOVB R0, [R3]      		; ler do periférico de entrada (colunas)
-	AND  R0, R5        		; elimina bits para além dos bits 0-3
-	CMP  R0, 0        		; há tecla premida?
-	JNZ  ha_tecla      		; se ainda houver uma tecla premida, espera até não haver
-	JMP  ciclo  			; repete ciclo
+teclado_ha_tecla:              		; neste ciclo espera-se até NENHUMA tecla estar premida
+	MOVB [R2], R1      		        ; escrever no periférico de saída (linhas)
+	MOVB R0, [R3]      		        ; ler do periférico de entrada (colunas)
+	AND  R0, R5        		        ; elimina bits para além dos bits 0-3
+	CMP  R0, 0        		        ; há tecla premida?
+	JNZ  teclado_ha_tecla      		; se ainda houver uma tecla premida, espera até não haver
+	JMP  teclado_ciclo  			; repete ciclo
     
+; ***********************************************************************
+; * ROTINAS
+; ***********************************************************************   
+
 ; #######################################################################
-;  ROTINA - conversao
-; #######################################################################    
+; CONVERSAO - converte a linha e a coluna da tecla para um digito 
+;             hexadecimal
+;
+; Argumentos:   
+;             R1 - linha
+;             R0 - coluna
+;             R6 - resultado
+; #######################################################################
     
-conversao:			; converte a linha e a coluna da tecla para um digito hexadecimal
-
-; R1 - linha
-; R0 - coluna
-; R6 - resultado
+conversao:			
 
 conversao_inicio:
 	PUSH R0
 	PUSH R1
 	PUSH R3
-	MOV R6, 0
-	MOV R3, 0
+	MOV R6, 0       ; inicializa a linha (decimal) a 0
+	MOV R3, 0       ; inicializa a coluna (decimal) a 0
 	
 conversao_linha:
-	SHR R1, 1
-	INC R6
+
+; a linha em formato decimal obtém-se contando o número de SHR precisos para anular o valor da linha
+
+	SHR R1, 1       
+	INC R6           
 	CMP R1, 0
 	JNZ conversao_linha
 	SUB R6, 1
-	
+	    
 conversao_coluna:
+
+; a linha em formato decimal obtém-se contando o número de SHR precisos para anular o valor da coluna
+
 	SHR R0, 1
 	INC R3
 	CMP R0, 0
@@ -176,6 +192,9 @@ conversao_coluna:
 	SUB R3, 1
 	
 conversao_soma:
+
+; a tecla permida obtêm-se com a fórmula 4*linha + coluna
+
 	MOV R1, 4
 	MUL R6, R1
 	ADD R6, R3
@@ -185,12 +204,18 @@ conversao_ret:
 	POP R1
 	POP R0
 	RET
-	 
-; #######################################################################
-;  ROTINA - desenha_boneco
-; #######################################################################    
 
-desenha_boneco:       		; desenha o boneco a partir da tabela
+; #######################################################################
+; DESENHA_BONECO - desenha um boneco a partir da sua tabela definida
+;                  nos dados
+;
+; Argumentos:   
+;             R0 - endereço
+;             R1 - linha
+;             R2 - coluna
+; ####################################################################### 
+
+desenha_boneco:
     ; R0 - endereço
     ; R1 - linha
     ; R2 - coluna
