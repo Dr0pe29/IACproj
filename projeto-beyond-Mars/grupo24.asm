@@ -16,11 +16,6 @@ TEC_LIN          EQU 0C000H  ; endereço das linhas do teclado (periférico POUT
 TEC_COL          EQU 0E000H  ; endereço das colunas do teclado (periférico PIN)
 LINHA            EQU 8       ; linha a testar (4ª linha, 1000b)
 MASCARA_0F       EQU 0FH     ; para isolar os 4 bits de menor peso
-VALOR_DISPLAY    EQU 2000H   ; endereço do valor do display
-LINHA_ASTEROIDE  EQU 2002H   ; endereço do valor da linha do pixel-posição do asteroide
-COLUNA_ASTEROIDE EQU 2004H   ; endereço do valor da coluna do pixel-posição do asteroide
-LINHA_SONDA	     EQU 2006H   ; endereço do valor da linha do pixel-posição da sonda
-COLUNA_SONDA	 EQU 2008H   ; endereço do valor da coluna do pixel-posição da sonda
 
 COMANDOS		EQU	6000H	            ; endereço de base dos comandos do MediaCenter
 DEFINE_LINHA    EQU COMANDOS + 0AH		; endereço do comando para definir a linha
@@ -65,6 +60,21 @@ DEF_PAINEL_INSTRUMENTOS:    ; tabela que define o painel de instrumentos
     WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
     WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
     
+VALOR_DISPLAY:              ; valor no display
+    WORD 0                  
+
+LINHA_ASTEROIDE:
+    WORD 0                  ; valor da linha do pixel-posição do asteroide
+
+COLUNA_ASTEROIDE:           ; valor da coluna do pixel-posição do asteroide
+    WORD 0    
+
+LINHA_SONDA:                ; valor da linha do pixel-posição da sonda
+    WORD 26
+
+COLUNA_SONDA:               ; valor da linha do pixel-posição da sonda
+    WORD 32 
+
 ; **********************************************************************
 ; * Código
 ; **********************************************************************
@@ -84,12 +94,6 @@ inicializacoes:
     MOV  [APAGA_ECRÃ], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
     MOV	  R1, 0			                ; cenário de fundo número 0
     MOV  [SELECIONA_CENARIO_FUNDO], R1	; seleciona o cenário de fundo
-    MOV  [LINHA_ASTEROIDE], R1          ; inicializa a linha da posição do asteroide
-    MOV  [COLUNA_ASTEROIDE], R1         ; inicializa a coluna da posição do asteroide
-    MOV	 R1, 26                         ; valor da linha inicial da sonda
-    MOV  [LINHA_SONDA], R1              ; inicializa a linha da posição da sonda
-    MOV  R1, 32                         ; valor da coluna inicial da sonda
-    MOV  [COLUNA_SONDA], R1             ; inicializa a linha da posição da sonda
 
 desenha_asteroide:          	
 	MOV	R0, DEF_ASTEROIDE_MINERAVEL	; endereço da tabela que define o asteroide
@@ -119,7 +123,6 @@ teclado_inicio:
     MOV  R5, MASCARA_0F   	    ; para isolar os 4 bits de menor peso
     MOV  R1, 0
     MOV  [R4], R1               ; mete os valores 000 nos displays
-    MOV  [VALOR_DISPLAY], R1    ; inicializa o valor dos displays a 0 na memória
 
 ; corpo principal do programa
 
