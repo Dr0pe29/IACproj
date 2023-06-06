@@ -52,6 +52,14 @@ DEF_ASTEROIDE_MINERAVEL:    ; tabela que define o asteroide mineravel
     WORD		VERDE, VERDE, VERDE, VERDE, VERDE
     WORD		0, VERDE, VERDE, VERDE, 0
 
+DEF_ASTEROIDE_NAO_MINERAVEL:    ; tabela que define o asteroide nao mineravel
+	WORD		5, 5        ; largura e altura do asteroide
+	WORD		VERMELHO, 0, VERMELHO, 0, VERMELHO
+    WORD		0, VERMELHO, 0, VERMELHO, 0
+    WORD		VERMELHO, 0, VERMELHO, 0, VERMELHO
+    WORD		0, VERMELHO, 0, VERMELHO, 0
+    WORD		VERMELHO, 0, VERMELHO, 0, VERMELHO
+
 DEF_SONDA:					; tabela que define a sonda
 	WORD		1, 1        ; largura e altura da sonda
 	WORD	    AMARELO
@@ -76,6 +84,13 @@ DEF_LUZES_2:                ; tabela que define o segundo sprite das luzes
 
 VALOR_DISPLAY:              ; valor no display
     WORD 100                  
+
+SPAWN_ASTEROIDE:
+    WORD 0, 1
+    WORD 30, -1
+    WORD 30, 0
+    WORD 30, 1
+    WORD 59, -1
 
 LINHA_ASTEROIDE:
     WORD 0                  ; valor da linha do pixel-posição do asteroide
@@ -317,21 +332,44 @@ PROCESS SP_init_asteroide  ; indicação de que a rotina que se segue é um proc
                             ; com indicação do valor para inicializar o SP
 
 asteroide:
-	MOV	R0, DEF_ASTEROIDE_MINERAVEL	; endereço da tabela que define o asteroide
-    MOV R1, [LINHA_ASTEROIDE]       ; linha da posição do asteroide
-    MOV R2, [COLUNA_ASTEROIDE]      ; coluna da posição do asteroide
+
+asteroide_parametros:
+    MOV R5, [TEC_COL]
+    SHR R5, 4
+    MOV R6, R5
+    MOV R8, 5
+    MOD R5, R8
+    MOV R8, 4
+    MOD R6, R8
+    JZ asteroide_mineravel
+
+asteroide_nao_mineravel:
+    MOV	R0, DEF_ASTEROIDE_NAO_MINERAVEL	; endereço da tabela que define o asteroide nao mineravel
+    JMP asteroide_spawn
+
+asteroide_mineravel:
+    MOV	R0, DEF_ASTEROIDE_MINERAVEL	; endereço da tabela que define o asteroide
+
+asteroide_spawn:
+    MUL R5, R8                       ; cada endereço da tabela tem 2 WORDS (4 bytes)
+    MOV R9, SPAWN_ASTEROIDE
+    MOV R2, [R9 + R5]  ; coluna de spawn do asteroide
+    ADD R5, 2                       ; o incremento do asteroide encontra-se na segunda WORD do endereço
+    MOV R7, [R9 + R5]  ; incremento
+    MOV R1, 0                       ; linha de spawn do asteroide
 
 asteroide_ciclo:
     CALL desenha_boneco             ; desenha o asteroide
-    MOV	R3, [relogio_asteroide]	        ; lê o LOCK e bloqueia até a interrupção escrever nele
+    MOV	R3, [relogio_asteroide]	    ; lê o LOCK e bloqueia até a interrupção escrever nele
 						            ; Quando bloqueia, passa o controlo para outro processo
 						            ; Como não há valor a transmitir, o registo pode ser um qualquer
 asteroide_movimento:
     CALL apaga_boneco               ; Rotina para apagar o boneco
-    INC R1                          ; Incremento da sua posição (1 na diagonal)
-    INC R2
+    ADD R1, 1                       ; Incremento da linha
+    ADD R2, R7                      ; incremento da coluna
     MOV [LINHA_ASTEROIDE], R1       ; Atualização da posição do asteróide na memória
     MOV [COLUNA_ASTEROIDE], R2
+    ;CALL testa_limites
     JMP  asteroide_ciclo            ; este processo é um ciclo infinito. Não é bloqueante devido ao LOCK
     
 
