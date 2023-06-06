@@ -17,17 +17,20 @@ TEC_COL          EQU 0E000H  ; endereço das colunas do teclado (periférico PIN
 LINHA            EQU 8       ; linha a testar (4ª linha, 1000b)
 MASCARA_0F       EQU 0FH     ; para isolar os 4 bits de menor peso
 
-COMANDOS		EQU	6000H	            ; endereço de base dos comandos do MediaCenter
-DEFINE_LINHA    EQU COMANDOS + 0AH		; endereço do comando para definir a linha
-DEFINE_COLUNA   EQU COMANDOS + 0CH		; endereço do comando para definir a coluna
-DEFINE_PIXEL    EQU COMANDOS + 12H		; endereço do comando para escrever um pixel
-APAGA_AVISO     EQU COMANDOS + 40H		; endereço do comando para apagar o aviso de nenhum cenário selecionado
-APAGA_ECRÃ	 	EQU COMANDOS + 02H		; endereço do comando para apagar todos os pixels já desenhados
-SELECIONA_CENARIO_FUNDO  EQU COMANDOS + 42H		; endereço do comando para selecionar uma imagem de fundo
-SELECIONA_SOM  EQU COMANDOS + 48H       ; endereço do comando para selecionar um som
-REPRODUZ_SOM EQU COMANDOS + 5AH         ; endereço do comando para reproduzir o som selecionado
+COMANDOS		            EQU	6000H	            ; endereço de base dos comandos do MediaCenter
+DEFINE_LINHA                EQU COMANDOS + 0AH		; endereço do comando para definir a linha
+DEFINE_COLUNA               EQU COMANDOS + 0CH		; endereço do comando para definir a coluna
+DEFINE_PIXEL                EQU COMANDOS + 12H		; endereço do comando para escrever um pixel
+APAGA_AVISO                 EQU COMANDOS + 40H		; endereço do comando para apagar o aviso de nenhum cenário selecionado
+APAGA_ECRÃ	 	            EQU COMANDOS + 02H		; endereço do comando para apagar todos os pixels já desenhados
+SELECIONA_CENARIO_FUNDO     EQU COMANDOS + 42H		; endereço do comando para selecionar uma imagem de fundo
+SELECIONA_SOM               EQU COMANDOS + 48H      ; endereço do comando para selecionar um som
+REPRODUZ_SOM                EQU COMANDOS + 5AH      ; endereço do comando para reproduzir o som selecionado
 
-ENERGIA_MAX     EQU 1100H
+ENERGIA_MAX                 EQU 1100H
+ALTURA_ASTEROIDE            EQU 4          ; a altura é 5 mas para chegar ao ultimo pixel apenas se soma 4
+LARGURA_ASTEROIDE           EQU 4          ; a largura é 5 mas para chegar ao ultimo pixel apenas se soma 4
+LINHA_MAX                   EQU 31         ; ultima linha do ecra  
 
 VERMELHO        EQU 0FF00H      ; cor do pixel vermelho
 VERDE           EQU 0F0F0H      ; cor do pixel verde
@@ -353,9 +356,9 @@ asteroide_mineravel:
 asteroide_spawn:
     MUL R5, R8                       ; cada endereço da tabela tem 2 WORDS (4 bytes)
     MOV R9, SPAWN_ASTEROIDE
-    MOV R2, [R9 + R5]  ; coluna de spawn do asteroide
+    MOV R2, [R9 + R5]               ; coluna de spawn do asteroide
     ADD R5, 2                       ; o incremento do asteroide encontra-se na segunda WORD do endereço
-    MOV R7, [R9 + R5]  ; incremento
+    MOV R7, [R9 + R5]               ; incremento
     MOV R1, 0                       ; linha de spawn do asteroide
 
 asteroide_ciclo:
@@ -365,13 +368,21 @@ asteroide_ciclo:
 						            ; Como não há valor a transmitir, o registo pode ser um qualquer
 asteroide_movimento:
     CALL apaga_boneco               ; Rotina para apagar o boneco
-    ADD R1, 1                       ; Incremento da linha
-    ADD R2, R7                      ; incremento da coluna
-    MOV [LINHA_ASTEROIDE], R1       ; Atualização da posição do asteróide na memória
-    MOV [COLUNA_ASTEROIDE], R2
-    ;CALL testa_limites
+    ADD  R1, 1                      ; Incremento da linha
+    ADD  R2, R7                     ; incremento da coluna
+    MOV  [LINHA_ASTEROIDE], R1      ; Atualização da posição do asteróide na memória
+    MOV  [COLUNA_ASTEROIDE], R2
+    CALL testa_limites
+    MOV  R5, 0
+    CMP  R8, R5
+    JZ   asteroide_parametros
+    INC  R5
+    CMP  R8, R5
+    JZ   asteroide_fim_jogo
     JMP  asteroide_ciclo            ; este processo é um ciclo infinito. Não é bloqueante devido ao LOCK
     
+asteroide_fim_jogo:
+    JMP asteroide_fim_jogo
 
 ; **********************************************************************
 ; Processo
@@ -589,6 +600,54 @@ apaga_boneco_ret:
     POP R1
     POP R0
     RET
+
+; #######################################################################
+; TESTA_LIMITES -   verifica se o asteroide embate com alguma coisa ou sai 
+;               do mapa 
+;
+; Argumentos:   
+;               R1 - linha do pixel posicao do asteroide
+;               R2 - coluna do pixel posicao do asteroide
+; #######################################################################
+
+testa_limites:
+
+testa_limites_inicio:
+    PUSH R0
+    PUSH R1
+    PUSH R2
+
+testa_limites_ecra:
+    MOV R0, LINHA_MAX
+    CMP R1, R0
+    JLE testa_limites_nave
+
+testa_limites_respawn:
+    MOV R8, 0
+    JMP testa_limites_ret
+
+testa_limites_nave:
+    ADD R1, ALTURA_ASTEROIDE
+    MOV R0, 27
+    CMP R1, R0
+    JLT testa_limites_ret
+    MOV R0, 39
+    CMP R2, R0
+    JGT testa_limites_ret
+    MOV R0, 25
+    ADD R2, LARGURA_ASTEROIDE
+    CMP R2, R0
+    JLT testa_limites_ret
+
+testa_limites_fim_jogo:
+    MOV R8, 1
+
+testa_limites_ret:
+    POP R2
+    POP R1
+    POP R0
+    RET
+
 
 ; ***********************************************************************
 ; * INTERRUPÇÕES
