@@ -32,6 +32,9 @@ VERMELHO        EQU 0FF00H      ; cor do pixel vermelho
 VERDE           EQU 0F0F0H      ; cor do pixel verde
 AZUL            EQU 0F00FH      ; cor do pixel azul
 AMARELO		    EQU 0FFF0H	    ; cor do pixel amarelo
+ROSA            EQU 0FF09H      ; cor do pixel rosa
+CINZA           EQU 0F064H      ; cor do pixel cinza
+CIANO           EQU 0F0CFH      ; cor do pixel azul ciano
 
 
 ; #######################################################################
@@ -55,11 +58,21 @@ DEF_SONDA:					; tabela que define a sonda
 DEF_PAINEL_INSTRUMENTOS:    ; tabela que define o painel de instrumentos
     WORD        15, 5       ; largura e altura do painel de instrumentos
     WORD        0, 0, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, 0, 0
-    WORD        0, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, 0
-    WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
-    WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
-    WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
-    
+    WORD        0, VERMELHO, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, VERMELHO, 0
+    WORD        VERMELHO, CINZA, CINZA, CIANO, CINZA, CINZA, CINZA, AMARELO, ROSA, AMARELO, ROSA, AMARELO, CINZA, CINZA, VERMELHO
+    WORD        VERMELHO, CINZA, CIANO, CINZA, CIANO, CINZA, CINZA, ROSA, AMARELO, ROSA, AMARELO, ROSA, CINZA, CINZA, VERMELHO
+    WORD        VERMELHO, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, VERMELHO
+
+DEF_LUZES_1:                ; tabela que define o primeiro sprite das luzes
+    WORD        5, 2        ; largura e altura das luzes
+    WORD        AMARELO, ROSA, AMARELO, ROSA, AMARELO
+    WORD        ROSA, AMARELO, ROSA, AMARELO, ROSA
+
+DEF_LUZES_2:                ; tabela que define o segundo sprite das luzes
+    WORD        5, 2        ; largura e altura das luzes
+    WORD        ROSA, AMARELO, ROSA, AMARELO, ROSA
+    WORD        AMARELO, ROSA, AMARELO, ROSA, AMARELO
+
 VALOR_DISPLAY:              ; valor no display
     WORD 0                  
 
@@ -92,15 +105,31 @@ SP_init_teclado:
 STACK 100H
 SP_init_asteroide:
 
+STACK 100H
+SP_init_nave:
+
 tecla_carregada:
     LOCK 0              ; LOCK para o teclado comunicar aos restantes processos que tecla detetou
 
 evento_int_0:
 	LOCK 0				; LOCK para a rotina de interrupção comunicar ao processo boneco que a interrupção ocorreu
+    
+evento_int_1:
+	LOCK 0				; LOCK para a rotina de interrupção comunicar ao processo sonda que a interrupção ocorreu
+
+evento_int_2:
+	LOCK 0				; LOCK para a rotina de interrupção comunicar ao processo energia que a interrupção ocorreu
+
+evento_int_3:
+	LOCK 0				; LOCK para a rotina de interrupção comunicar ao processo boneco que a interrupção ocorreu
 
 ; Tabela das rotinas de interrupção
 tab:
 	WORD rot_int_0			; rotina de atendimento da interrupção 0
+    WORD 0      			; rotina de atendimento da interrupção 1
+    WORD 0		            ; rotina de atendimento da interrupção 2
+    WORD rot_int_3			; rotina de atendimento da interrupção 3
+
 
 PLACE 0 ; o código começa na posição 0
 
@@ -112,23 +141,19 @@ inicializacoes:
     MOV	R1, 0			                ; cenário de fundo número 0
     MOV [SELECIONA_CENARIO_FUNDO], R1	; seleciona o cenário de fundo
     EI0					                ; permite interrupções 0
+    EI3
 	EI					                ; permite interrupções (geral)
 
     ; criacao dos processos
     CALL teclado
     CALL asteroide
+    CALL nave
 
-dsenha_sonda:          	
+desenha_sonda:          	
 	MOV	R0, DEF_SONDA			    ; endereço da tabela que define a sonda
     MOV R1, [LINHA_SONDA]           ; linha da posição da sonda
     MOV R2, [COLUNA_SONDA]          ; coluna da posição da sonda
     CALL desenha_boneco             ; desenha a sonda
-
-desenha_painel:            
-    MOV R0, DEF_PAINEL_INSTRUMENTOS ; endereço da tabela que define o painel
-    MOV R1, 27                      ; linha da posição do painel
-    MOV R2, 25                      ; coluna da posição do painel
-    CALL desenha_boneco             ; desenha o painel
 
 ; **********************************************************************
 ; Processo
@@ -218,7 +243,50 @@ asteroide_movimento:
     JMP  asteroide_ciclo            ; este processo é um ciclo infinito. Não é bloqueante devido ao LOCK
     
 
+; **********************************************************************
+; Processo
+;
+; NAVE - Processo que executa as ações relativas ao painel de instrumentos,
+; isto é, a animação das luzes
+;
+; **********************************************************************
 
+PROCESS SP_init_nave  ; indicação de que a rotina que se segue é um processo,
+                            ; com indicação do valor para inicializar o SP
+nave:            
+    MOV R0, DEF_PAINEL_INSTRUMENTOS ; endereço da tabela que define o painel
+    MOV R1, 27                      ; linha da posição do painel
+    MOV R2, 25                      ; coluna da posição do painel
+    CALL desenha_boneco             ; desenha o painel
+    MOV R4, 1                       ; este registo representa o sprite em que as luzes se encontram no instante
+
+nave_ciclo:
+    MOV	R3, [evento_int_0]	        ; lê o LOCK e bloqueia até a interrupção escrever nele
+						            ; Quando bloqueia, passa o controlo para outro processo
+						            ; Como não há valor a transmitir, o registo pode ser um qualquer
+    CMP R4, 1
+    JZ nave_sprite_2
+
+nave_sprite_1:
+    MOV R0, DEF_LUZES_1             ; endereço da tabela que define o primeiro sprite das luzes
+    MOV R1, 29                      ; linha da posição do painel
+    MOV R2, 32                      ; coluna da posição do painel
+    CALL desenha_boneco
+    INC R4
+    JMP nave_ciclo
+
+nave_sprite_2:
+    MOV R0, DEF_LUZES_2             ; endereço da tabela que define o segundo sprite das luzes
+    MOV R1, 29                      ; linha da posição do painel
+    MOV R2, 32                      ; coluna da posição do painel
+    CALL desenha_boneco
+    SUB R4, 1
+    JMP nave_ciclo
+
+
+
+
+nave_luzes:
 
 
 
@@ -465,4 +533,13 @@ apaga_boneco_ret:
 
 rot_int_0:
 	MOV	[evento_int_0], R0	; desbloqueia processo boneco (qualquer registo serve) 
+	RFE
+
+; **********************************************************************
+; ROT_INT_3 - 	Rotina de atendimento da interrupção 3
+;			Faz simplesmente uma escrita no LOCK que o processo nave lê.
+; **********************************************************************
+
+rot_int_3:
+	MOV	[evento_int_3], R0	; desbloqueia processo nave (qualquer registo serve) 
 	RFE
