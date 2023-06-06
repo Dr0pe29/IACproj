@@ -27,6 +27,7 @@ SELECIONA_CENARIO_FUNDO  EQU COMANDOS + 42H		; endereço do comando para selecio
 SELECIONA_SOM  EQU COMANDOS + 48H       ; endereço do comando para selecionar um som
 REPRODUZ_SOM EQU COMANDOS + 5AH         ; endereço do comando para reproduzir o som selecionado
 
+ENERGIA_MAX     EQU 1100H
 
 VERMELHO        EQU 0FF00H      ; cor do pixel vermelho
 VERDE           EQU 0F0F0H      ; cor do pixel verde
@@ -61,7 +62,7 @@ DEF_PAINEL_INSTRUMENTOS:    ; tabela que define o painel de instrumentos
     WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
     
 VALOR_DISPLAY:              ; valor no display
-    WORD 0                  
+    WORD 100                  
 
 LINHA_ASTEROIDE:
     WORD 0                  ; valor da linha do pixel-posição do asteroide
@@ -89,19 +90,39 @@ SP_init:
 STACK 100H
 SP_init_teclado:
 
+STACK 100H
+SP_init_energia:
+
 tecla_carregada:
     LOCK 0              ; LOCK para o teclado comunicar aos restantes processos que tecla detetou
+
+relogio_energia:
+    LOCK 0              ; LOCK para a rotina de interrupção comunicar ao processo boneco que a interrupção ocorreu
+
+; Tabela das rotinas de interrupção
+tab:
+    WORD 0         ; rotina de atendimento da interrupção 0
+    WORD 0         ; rotina de atendimento da interrupção 1
+    WORD rot_int_2          ; rotina de atendimento da interrupção 2
+    WORD 0         ; rotina de atendimento da interrupção 3
 
 PLACE 0 ; o código começa na posição 0
 
 inicializacoes:
     MOV SP, SP_init
+
+    MOV  BTE, tab           ; inicializa BTE (registo de Base da Tabela de Exceções)
+
     MOV  [APAGA_AVISO], R1	            ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
     MOV  [APAGA_ECRÃ], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
     MOV	  R1, 0			                ; cenário de fundo número 0
     MOV  [SELECIONA_CENARIO_FUNDO], R1	; seleciona o cenário de fundo
 
+    EI2
+    EI
+
     CALL teclado_inicio
+    CALL energia
 
 desenha_asteroide:          	
 	MOV	R0, DEF_ASTEROIDE_MINERAVEL	; endereço da tabela que define o asteroide
@@ -147,6 +168,9 @@ comando_inicio:
     JZ   comando_move_asteroide     ; input = 2 -> Move o asteróide
     CMP  R6, 3
     JZ   comando_move_sonda         ; input = 3 -> Move a sonda
+    MOV R1, 0CH
+    CMP  R6, R1
+    JZ   comando_comeca_jogo        ; input = C -> Começa jogo
     JMP  comando_inicio               
     
 comando_aumenta_display:
@@ -190,7 +214,23 @@ comando_move_sonda:
     CALL desenha_boneco     ; Rotina para desenhar o boneco
     JMP  comando_inicio
 
+comando_comeca_jogo:
+    MOV   R1, 0                         ; cenário de fundo número 0
+    MOV  [SELECIONA_CENARIO_FUNDO], R1  ; seleciona o cenário de fundo
+    MOV  R4, DISPLAYS           ; endereço do periférico dos displays
+    MOV  R1, 64H                ; Valor correspondente a 100 decimal (energia máxima)
+    MOV  [VALOR_DISPLAY], R1    ; Altera o valor na memória
+    MOV  R1, 0100H              ; Valor correspondente a 100 decimal no display
+    MOV  [R4], R1               ; Altera o valor no display
+    JMP  comando_inicio
 
+
+; **********************************************************************
+; ROT_INT_2 -   Rotina de atendimento da interrupção 2
+; **********************************************************************
+rot_int_2:
+    MOV [relogio_energia], R0  ; desbloqueia processo energia 
+    RFE
 
 ; **********************************************************************
 ; Processo
@@ -210,8 +250,6 @@ teclado_inicio:
     MOV  R3, TEC_COL   		    ; endereço do periférico das colunas
     MOV  R4, DISPLAYS  		    ; endereço do periférico dos displays
     MOV  R5, MASCARA_0F   	    ; para isolar os 4 bits de menor peso
-    MOV  R1, 0
-    MOV  [R4], R1               ; mete os valores 000 nos displays
 
 ; corpo principal do programa
 
@@ -246,7 +284,51 @@ teclado_ha_tecla:              		; neste ciclo espera-se até NENHUMA tecla esta
 	CMP  R0, 0        		        ; há tecla premida?
 	JNZ  teclado_ha_tecla      		; se ainda houver uma tecla premida, espera até não haver
 	JMP  teclado_ciclo  			; repete ciclo
-    
+
+; **********************************************************************
+; Processo
+;
+; ENERGIA - Processo que decrementa a energia no display, com
+;        temporização marcada pela interrupção 0
+;
+; **********************************************************************
+
+PROCESS SP_init_energia ; indicação de que a rotina que se segue é um processo,
+                        ; com indicação do valor para inicializar o SP
+
+                        ;R1 - número
+                        ;R2 - fator
+                        ;R3 - valor 10
+                        ;R4 - dígito
+                        ;R5 - resultado
+
+energia:
+    MOV R0, [relogio_energia] ; lê o LOCK e bloqueia até a interrupção escrever nele
+
+    MOV R1, [VALOR_DISPLAY] ; Obtém valor atual da energia
+    MOV R2, 3               ; Valor de decremento da energia (3%)
+    SUB R1, R2              ; Decremento da energia
+    MOV [VALOR_DISPLAY], R1 ; Atualiza valor da energia em memória
+    MOV R2, 1000            ; Fator para converter um número de 3 dígitos
+    MOV R3, 10              ; Valor para obter diferentes potências de 10
+    MOV R5, 0               ; Inicialização a 0
+converte_energia:
+    MOD R1, R2              ; número: o valor a converter nesta iteração
+                            ; fator: uma potência de 10 (para obter os dígitos)
+
+    DIV R2, R3              ; prepara o próximo fator de divisão
+    CMP R2, 0               ; se fator = 0, termina
+    JZ altera_energia
+    MOV R4, R1              ; Preserva o número
+    DIV R4, R2              ; Obtém um dígito do valor decimal (0 a 9)
+    SHL R5, 4               ; desloca, para dar espaço ao novo dígito
+    OR R5, R4               ; vai compondo o resultado
+    JMP converte_energia
+
+altera_energia:
+    MOV  R4, DISPLAYS           ; endereço do periférico dos displays
+    MOV  [R4], R5              ; Altera o valor no display
+    JMP energia
 ; ***********************************************************************
 ; * ROTINAS
 ; ***********************************************************************   
