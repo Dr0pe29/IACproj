@@ -17,17 +17,20 @@ TEC_COL          EQU 0E000H  ; endereço das colunas do teclado (periférico PIN
 LINHA            EQU 8       ; linha a testar (4ª linha, 1000b)
 MASCARA_0F       EQU 0FH     ; para isolar os 4 bits de menor peso
 
-COMANDOS		EQU	6000H	            ; endereço de base dos comandos do MediaCenter
-DEFINE_LINHA    EQU COMANDOS + 0AH		; endereço do comando para definir a linha
-DEFINE_COLUNA   EQU COMANDOS + 0CH		; endereço do comando para definir a coluna
-DEFINE_PIXEL    EQU COMANDOS + 12H		; endereço do comando para escrever um pixel
-APAGA_AVISO     EQU COMANDOS + 40H		; endereço do comando para apagar o aviso de nenhum cenário selecionado
-APAGA_ECRÃ	 	EQU COMANDOS + 02H		; endereço do comando para apagar todos os pixels já desenhados
-SELECIONA_CENARIO_FUNDO  EQU COMANDOS + 42H		; endereço do comando para selecionar uma imagem de fundo
-SELECIONA_SOM  EQU COMANDOS + 48H       ; endereço do comando para selecionar um som
-REPRODUZ_SOM EQU COMANDOS + 5AH         ; endereço do comando para reproduzir o som selecionado
+COMANDOS		            EQU	6000H	            ; endereço de base dos comandos do MediaCenter
+DEFINE_LINHA                EQU COMANDOS + 0AH		; endereço do comando para definir a linha
+DEFINE_COLUNA               EQU COMANDOS + 0CH		; endereço do comando para definir a coluna
+DEFINE_PIXEL                EQU COMANDOS + 12H		; endereço do comando para escrever um pixel
+APAGA_AVISO                 EQU COMANDOS + 40H		; endereço do comando para apagar o aviso de nenhum cenário selecionado
+APAGA_ECRÃ	 	            EQU COMANDOS + 02H		; endereço do comando para apagar todos os pixels já desenhados
+SELECIONA_CENARIO_FUNDO     EQU COMANDOS + 42H		; endereço do comando para selecionar uma imagem de fundo
+SELECIONA_SOM               EQU COMANDOS + 48H      ; endereço do comando para selecionar um som
+REPRODUZ_SOM                EQU COMANDOS + 5AH      ; endereço do comando para reproduzir o som selecionado
 
-ENERGIA_MAX     EQU 1100H
+ENERGIA_MAX                 EQU 1100H
+ALTURA_ASTEROIDE            EQU 4          ; a altura é 5 mas para chegar ao ultimo pixel apenas se soma 4
+LARGURA_ASTEROIDE           EQU 4          ; a largura é 5 mas para chegar ao ultimo pixel apenas se soma 4
+LINHA_MAX                   EQU 31         ; ultima linha do ecra  
 
 VERMELHO        EQU 0FF00H      ; cor do pixel vermelho
 VERDE           EQU 0F0F0H      ; cor do pixel verde
@@ -127,13 +130,16 @@ SP_init_asteroide:
 STACK 100H
 SP_init_nave:
 
+STACK 100H          
+SP_init_sonda:   
+
 tecla_carregada:
     LOCK 0              ; LOCK para o teclado comunicar aos restantes processos que tecla detetou
 
 relogio_asteroide:
 	LOCK 0				; LOCK para a rotina de interrupção comunicar ao processo boneco que a interrupção ocorreu
     
-evento_int_1:
+relogio_sonda:
 	LOCK 0				; LOCK para a rotina de interrupção comunicar ao processo sonda que a interrupção ocorreu
 
 relogio_energia:
@@ -145,7 +151,7 @@ relogio_nave:
 ; Tabela das rotinas de interrupção
 tab:
 	WORD rot_int_0			; rotina de atendimento da interrupção 0
-    WORD 0      			; rotina de atendimento da interrupção 1
+    WORD rot_int_1      			; rotina de atendimento da interrupção 1
     WORD rot_int_2          ; rotina de atendimento da interrupção 2
     WORD rot_int_3			; rotina de atendimento da interrupção 3
 
@@ -164,7 +170,8 @@ inicializacoes:
     MOV  R1, 0100H                      ; Valor correspondente a 100 decimal no display
     MOV  [R4], R1                       ; Altera o valor no display
 
-    EI0					                ; permite interrupções 0
+    EI0		
+    EI1			                ; permite interrupções 0
     EI2                                 ; permite interrupções 2
     EI3                                 ; permite interrupções 3
 	EI					                ; permite interrupções (geral)
@@ -174,47 +181,30 @@ inicializacoes:
     CALL energia
     CALL asteroide
     CALL nave
-
-desenha_sonda:          	
-	MOV	R0, DEF_SONDA			    ; endereço da tabela que define a sonda
-    MOV R1, [LINHA_SONDA]           ; linha da posição da sonda
-    MOV R2, [COLUNA_SONDA]          ; coluna da posição da sonda
-    CALL desenha_boneco             ; desenha a sonda
+    CALL sonda
+    
 
 comando:
-; R6 - input
+; R6 - c xgrx
 
 comando_inicio: 
 
 ; redireciona para a ação correspondente ao input
 
     MOV  R6, [tecla_carregada] ; bloqueia neste LOCK até uma tecla ser carregada
-    CMP  R6, 3
-    JZ   comando_move_sonda         ; input = 3 -> Move a sonda
     MOV  R1, 0CH
     CMP  R6, R1
     JZ   comando_comeca_jogo        ; input = C -> Começa jogo
     JMP  comando_inicio                
 
-comando_move_sonda:
-    MOV R0, DEF_SONDA       ; Obtém o endereço da sonda
-    MOV R1, [LINHA_SONDA]   ; Obtém a sua posição (linha)
-    MOV R2, [COLUNA_SONDA]  ; Obtém a sua posição (coluna)
-    CALL apaga_boneco       ; Rotina para apagar o boneco
-    SUB R1, 1               ; Sobe a posição 1 linha
-    MOV [LINHA_SONDA], R1   ; Atualização da posição da sonda na memória
-    MOV [COLUNA_SONDA], R2
-    CALL desenha_boneco     ; Rotina para desenhar o boneco
-    JMP  comando_inicio
-
 comando_comeca_jogo:
     MOV   R1, 0                         ; cenário de fundo número 0
     MOV  [SELECIONA_CENARIO_FUNDO], R1  ; seleciona o cenário de fundo
-    MOV  R4, DISPLAYS           ; endereço do periférico dos displays
-    MOV  R1, 64H                ; Valor correspondente a 100 decimal (energia máxima)
-    MOV  [VALOR_DISPLAY], R1    ; Altera o valor na memória
-    MOV  R1, 0100H              ; Valor correspondente a 100 decimal no display
-    MOV  [R4], R1               ; Altera o valor no display
+    MOV  R4, DISPLAYS                   ; endereço do periférico dos displays
+    MOV  R1, 64H                        ; Valor correspondente a 100 decimal (energia máxima)
+    MOV  [VALOR_DISPLAY], R1            ; Altera o valor na memória
+    MOV  R1, 0100H                      ; Valor correspondente a 100 decimal no display
+    MOV  [R4], R1                       ; Altera o valor no display
     JMP  comando_inicio
 
 ; **********************************************************************
@@ -353,9 +343,9 @@ asteroide_mineravel:
 asteroide_spawn:
     MUL R5, R8                       ; cada endereço da tabela tem 2 WORDS (4 bytes)
     MOV R9, SPAWN_ASTEROIDE
-    MOV R2, [R9 + R5]  ; coluna de spawn do asteroide
+    MOV R2, [R9 + R5]               ; coluna de spawn do asteroide
     ADD R5, 2                       ; o incremento do asteroide encontra-se na segunda WORD do endereço
-    MOV R7, [R9 + R5]  ; incremento
+    MOV R7, [R9 + R5]               ; incremento
     MOV R1, 0                       ; linha de spawn do asteroide
 
 asteroide_ciclo:
@@ -365,13 +355,21 @@ asteroide_ciclo:
 						            ; Como não há valor a transmitir, o registo pode ser um qualquer
 asteroide_movimento:
     CALL apaga_boneco               ; Rotina para apagar o boneco
-    ADD R1, 1                       ; Incremento da linha
-    ADD R2, R7                      ; incremento da coluna
-    MOV [LINHA_ASTEROIDE], R1       ; Atualização da posição do asteróide na memória
-    MOV [COLUNA_ASTEROIDE], R2
-    ;CALL testa_limites
+    ADD  R1, 1                      ; Incremento da linha
+    ADD  R2, R7                     ; incremento da coluna
+    MOV  [LINHA_ASTEROIDE], R1      ; Atualização da posição do asteróide na memória
+    MOV  [COLUNA_ASTEROIDE], R2
+    CALL testa_limites
+    MOV  R5, 0
+    CMP  R8, R5
+    JZ   asteroide_parametros
+    INC  R5
+    CMP  R8, R5
+    JZ   asteroide_fim_jogo
     JMP  asteroide_ciclo            ; este processo é um ciclo infinito. Não é bloqueante devido ao LOCK
     
+asteroide_fim_jogo:
+    JMP asteroide_fim_jogo
 
 ; **********************************************************************
 ; Processo
@@ -412,6 +410,40 @@ nave_sprite_2:
     CALL desenha_boneco
     SUB R4, 1
     JMP nave_ciclo
+
+; ********************************************************************************
+; Processo
+;
+; SONDA - Processo que desenha as sondas e as move na direcao correta consoante 
+;         a tecla premida com temporizacao marcada pela interrupcao 0
+;
+; ********************************************************************************]
+
+PROCESS SP_init_sonda  ; indicação de que a rotina que se segue é um processo,
+                        ; com indicação do valor para inicializar o SP
+
+sonda:   
+    MOV	R0, DEF_SONDA			    ; endereço da tabela que define a sonda
+    MOV R1, [LINHA_SONDA]           ; linha da posição da sonda
+    MOV R2, [COLUNA_SONDA]          ; coluna da posição da sonda
+    MOV R4, 14                      ; linha da posição máxima
+
+
+ciclo_sonda:
+    CALL    desenha_boneco     ; desenha a sonda na sua posição atual
+    MOV R3, [relogio_sonda]     ; lê o LOCK e bloqueia até a interrupção escrever nele
+                                    ; Quando bloqueia, passa o controlo para outro processo
+                                    ; Como não há valor a transmitir, o registo pode ser um qualquer
+
+sonda_movimento:
+    CALL    apaga_boneco        ; apaga a sonda da sua posição corrente
+    SUB R1, 1                 ; para desenhar sonda na linha seguinte
+    CMP R1, R4                 ; verifica máximo movimentos
+    JZ apaga_boneco
+    MOV [LINHA_SONDA], R1   ; Atualização da posição da sonda na memória
+    JMP ciclo_sonda             ; esta "rotina" nunca retorna porque nunca termina
+                                ; Se se quisesse terminar o processo, era deixar o processo chegar a um RET
+
 
 ; ***********************************************************************
 ; * ROTINAS
@@ -590,6 +622,54 @@ apaga_boneco_ret:
     POP R0
     RET
 
+; #######################################################################
+; TESTA_LIMITES -   verifica se o asteroide embate com alguma coisa ou sai 
+;               do mapa 
+;
+; Argumentos:   
+;               R1 - linha do pixel posicao do asteroide
+;               R2 - coluna do pixel posicao do asteroide
+; #######################################################################
+
+testa_limites:
+
+testa_limites_inicio:
+    PUSH R0
+    PUSH R1
+    PUSH R2
+
+testa_limites_ecra:
+    MOV R0, LINHA_MAX
+    CMP R1, R0
+    JLE testa_limites_nave
+
+testa_limites_respawn:
+    MOV R8, 0
+    JMP testa_limites_ret
+
+testa_limites_nave:
+    ADD R1, ALTURA_ASTEROIDE
+    MOV R0, 27
+    CMP R1, R0
+    JLT testa_limites_ret
+    MOV R0, 39
+    CMP R2, R0
+    JGT testa_limites_ret
+    MOV R0, 25
+    ADD R2, LARGURA_ASTEROIDE
+    CMP R2, R0
+    JLT testa_limites_ret
+
+testa_limites_fim_jogo:
+    MOV R8, 1
+
+testa_limites_ret:
+    POP R2
+    POP R1
+    POP R0
+    RET
+
+
 ; ***********************************************************************
 ; * INTERRUPÇÕES
 ; ***********************************************************************   
@@ -601,6 +681,15 @@ apaga_boneco_ret:
 
 rot_int_0:
 	MOV	[relogio_asteroide], R0	; desbloqueia processo boneco (qualquer registo serve) 
+	RFE
+
+; **********************************************************************
+; ROT_INT_1 - 	Rotina de atendimento da interrupção 1
+;			Faz simplesmente uma escrita no LOCK que o processo asteroide lê
+; **********************************************************************
+
+rot_int_1:
+	MOV	[relogio_sonda], R0	; desbloqueia processo sonda (qualquer registo serve) 
 	RFE
 
 ; **********************************************************************

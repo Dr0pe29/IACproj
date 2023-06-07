@@ -396,8 +396,6 @@ sonda_movimento:
                                 ; Se se quisesse terminar o processo, era deixar o processo chegar a um RET
 
     
-
-
 ; ***********************************************************************
 ; * ROTINAS
 ; ***********************************************************************   
