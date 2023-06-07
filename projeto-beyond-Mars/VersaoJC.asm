@@ -95,6 +95,11 @@ SPAWN_ASTEROIDE:
     WORD 30, 1
     WORD 59, -1
 
+SPAWN_SONDA:
+    WORD 26, -1
+    WORD 32, 0
+    WORD 38, 1
+
 LINHA_ASTEROIDE:
     WORD 0                  ; valor da linha do pixel-posição do asteroide
 
@@ -147,6 +152,9 @@ relogio_energia:
 
 relogio_nave:
 	LOCK 0				; LOCK para a rotina de interrupção comunicar ao processo nave que a interrupção ocorreu
+
+colisao:                ; indica se ha colisao entre asteroide e sonda
+    WORD 0
 
 ; Tabela das rotinas de interrupção
 tab:
@@ -359,14 +367,22 @@ asteroide_movimento:
     ADD  R2, R7                     ; incremento da coluna
     MOV  [LINHA_ASTEROIDE], R1      ; Atualização da posição do asteróide na memória
     MOV  [COLUNA_ASTEROIDE], R2
-    CALL testa_limites
+    CALL testa_limites_A
     MOV  R5, 0
     CMP  R8, R5
     JZ   asteroide_parametros
     INC  R5
     CMP  R8, R5
     JZ   asteroide_fim_jogo
+    INC  R5
+    CMP  R8, R5
+    JZ   asteroide_colisao
     JMP  asteroide_ciclo            ; este processo é um ciclo infinito. Não é bloqueante devido ao LOCK
+    
+asteroide_colisao:
+    MOV R8, 1
+    MOV [colisao], R8
+    JMP asteroide_parametros
     
 asteroide_fim_jogo:
     JMP asteroide_fim_jogo
@@ -424,26 +440,51 @@ PROCESS SP_init_sonda  ; indicação de que a rotina que se segue é um processo
 
 sonda:   
     MOV	R0, DEF_SONDA			    ; endereço da tabela que define a sonda
-    MOV R1, [LINHA_SONDA]           ; linha da posição da sonda
-    MOV R2, [COLUNA_SONDA]          ; coluna da posição da sonda
     MOV R4, 14                      ; linha da posição máxima
 
+sonda_input:
+    MOV R1, -1
+    MOV [LINHA_SONDA], R1
+    MOV [COLUNA_SONDA], R1 
+    MOV R5, [tecla_carregada]       ; bloqueia neste LOCK até uma tecla ser carregada
+    MOV R8, 2
+    CMP R5, R8
+    JGT sonda_input
 
-ciclo_sonda:
-    CALL    desenha_boneco     ; desenha a sonda na sua posição atual
-    MOV R3, [relogio_sonda]     ; lê o LOCK e bloqueia até a interrupção escrever nele
+sonda_spawn:
+    MOV R8, 4
+    MUL R5, R8                       ; cada endereço da tabela tem 2 WORDS (4 bytes)
+    MOV R9, SPAWN_SONDA
+    MOV R2, [R9 + R5]               ; coluna de spawn da sonda
+    ADD R5, 2                       ; o incremento da sonda encontra-se na segunda WORD do endereço
+    MOV R6, [R9 + R5]               ; incremento
+    MOV R1, 26                      ; linha de spawn da sonda
+
+sonda_ciclo:
+    CALL desenha_boneco             ; desenha a sonda na sua posição atual
+    MOV  R3, [relogio_sonda]        ; lê o LOCK e bloqueia até a interrupção escrever nele
                                     ; Quando bloqueia, passa o controlo para outro processo
                                     ; Como não há valor a transmitir, o registo pode ser um qualquer
 
 sonda_movimento:
-    CALL    apaga_boneco        ; apaga a sonda da sua posição corrente
-    SUB R1, 1                 ; para desenhar sonda na linha seguinte
-    CMP R1, R4                 ; verifica máximo movimentos
-    JZ apaga_boneco
-    MOV [LINHA_SONDA], R1   ; Atualização da posição da sonda na memória
-    JMP ciclo_sonda             ; esta "rotina" nunca retorna porque nunca termina
+    CALL apaga_boneco           ; apaga a sonda da sua posição corrente
+    SUB  R1, 1                  ; para desenhar sonda na linha seguinte
+    ADD  R2, R6                 ; para desenhar a sonda na próxima coluna
+    CMP  R1, R4                 ; verifica máximo movimentos
+    JZ   sonda_input
+    MOV  [LINHA_SONDA], R1      ; Atualização da posição da sonda na memória
+    MOV  [COLUNA_SONDA], R2
+    MOV  R8, [colisao]
+    MOV  R3, 1
+    CMP  R8, R3
+    JZ   sonda_destruida
+    JMP  sonda_ciclo            ; esta "rotina" nunca retorna porque nunca termina
                                 ; Se se quisesse terminar o processo, era deixar o processo chegar a um RET
 
+sonda_destruida:
+    MOV  R8, 0
+    MOV  [colisao], R8
+    JMP  sonda_input
 
 ; ***********************************************************************
 ; * ROTINAS
@@ -623,7 +664,7 @@ apaga_boneco_ret:
     RET
 
 ; #######################################################################
-; TESTA_LIMITES -   verifica se o asteroide embate com alguma coisa ou sai 
+; TESTA_LIMITES_A -   verifica se o asteroide embate com alguma coisa ou sai 
 ;               do mapa 
 ;
 ; Argumentos:   
@@ -631,39 +672,65 @@ apaga_boneco_ret:
 ;               R2 - coluna do pixel posicao do asteroide
 ; #######################################################################
 
-testa_limites:
+testa_limites_A:
 
-testa_limites_inicio:
+testa_limites_A_inicio:
     PUSH R0
     PUSH R1
     PUSH R2
+    PUSH R3
+    PUSH R4
+    MOV  R3, R1
+    MOV  R4, R2
 
-testa_limites_ecra:
+testa_limites_A_ecra:
     MOV R0, LINHA_MAX
     CMP R1, R0
-    JLE testa_limites_nave
+    JLE testa_limites_A_nave
 
-testa_limites_respawn:
+testa_limites_A_respawn:
     MOV R8, 0
-    JMP testa_limites_ret
+    JMP testa_limites_A_ret
 
-testa_limites_nave:
+testa_limites_A_nave:
     ADD R1, ALTURA_ASTEROIDE
     MOV R0, 27
     CMP R1, R0
-    JLT testa_limites_ret
+    JLT testa_limites_A_sonda
     MOV R0, 39
     CMP R2, R0
-    JGT testa_limites_ret
+    JGT testa_limites_A_sonda
     MOV R0, 25
     ADD R2, LARGURA_ASTEROIDE
     CMP R2, R0
-    JLT testa_limites_ret
+    JLT testa_limites_A_sonda
 
-testa_limites_fim_jogo:
+testa_limites_A_fim_jogo:
     MOV R8, 1
+    JMP testa_limites_A_ret
 
-testa_limites_ret:
+testa_limites_A_sonda:
+    MOV R1, R3
+    MOV R2, R4
+    MOV R0, [LINHA_SONDA]
+    CMP R1, R0
+    JGT testa_limites_A_ret
+    ADD R1, ALTURA_ASTEROIDE
+    CMP R1, R0
+    JLT testa_limites_A_ret
+    MOV R0, [COLUNA_SONDA]
+    CMP R2, R0
+    JGT testa_limites_A_ret
+    ADD R2, LARGURA_ASTEROIDE
+    CMP R2, R0
+    JLT testa_limites_A_ret
+
+testa_limites_A_colisao:
+    MOV R8, 2
+
+testa_limites_A_ret:
+    POP R4
+    POP R3
     POP R2
     POP R1
     POP R0

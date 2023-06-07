@@ -167,7 +167,7 @@ inicializacoes:
 
 
 comando:
-; R6 - c xgrx
+; R6 - input
 
 comando_inicio: 
 
