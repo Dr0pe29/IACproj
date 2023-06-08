@@ -17,13 +17,15 @@ TEC_COL          EQU 0E000H  ; endereço das colunas do teclado (periférico PIN
 LINHA            EQU 8       ; linha a testar (4ª linha, 1000b)
 MASCARA_0F       EQU 0FH     ; para isolar os 4 bits de menor peso
 
-COMANDOS		EQU	6000H	            ; endereço de base dos comandos do MediaCenter
-DEFINE_LINHA    EQU COMANDOS + 0AH		; endereço do comando para definir a linha
-DEFINE_COLUNA   EQU COMANDOS + 0CH		; endereço do comando para definir a coluna
-DEFINE_PIXEL    EQU COMANDOS + 12H		; endereço do comando para escrever um pixel
-APAGA_AVISO     EQU COMANDOS + 40H		; endereço do comando para apagar o aviso de nenhum cenário selecionado
-APAGA_ECRÃ	 	EQU COMANDOS + 02H		; endereço do comando para apagar todos os pixels já desenhados
-SELECIONA_CENARIO_FUNDO  EQU COMANDOS + 42H		; endereço do comando para selecionar uma imagem de fundo
+COMANDOS        EQU 6000H               ; endereço de base dos comandos do MediaCenter
+DEFINE_LINHA    EQU COMANDOS + 0AH      ; endereço do comando para definir a linha
+DEFINE_COLUNA   EQU COMANDOS + 0CH      ; endereço do comando para definir a coluna
+DEFINE_PIXEL    EQU COMANDOS + 12H      ; endereço do comando para escrever um pixel
+APAGA_AVISO     EQU COMANDOS + 40H      ; endereço do comando para apagar o aviso de nenhum cenário selecionado
+APAGA_ECRÃ      EQU COMANDOS + 02H      ; endereço do comando para apagar todos os pixels já desenhados
+SELECIONA_CENARIO_FUNDO  EQU COMANDOS + 42H     ; endereço do comando para selecionar uma imagem de fundo
+SELECIONA_CENARIO_SOBREPOSTO  EQU COMANDOS + 46H     ; endereço do comando para selecionar uma imagem de fundo
+APAGA_CENARIO_SOBREPOSTO  EQU COMANDOS + 44H     ; endereço do comando para selecionar uma imagem de fundo
 SELECIONA_SOM  EQU COMANDOS + 48H       ; endereço do comando para selecionar um som
 REPRODUZ_SOM EQU COMANDOS + 5AH         ; endereço do comando para reproduzir o som selecionado
 
@@ -32,37 +34,65 @@ ENERGIA_MAX     EQU 1100H
 VERMELHO        EQU 0FF00H      ; cor do pixel vermelho
 VERDE           EQU 0F0F0H      ; cor do pixel verde
 AZUL            EQU 0F00FH      ; cor do pixel azul
-AMARELO		    EQU 0FFF0H	    ; cor do pixel amarelo
+AMARELO         EQU 0FFF0H      ; cor do pixel amarelo
+ROSA            EQU 0FF09H      ; cor do pixel rosa
+CINZA           EQU 0F064H      ; cor do pixel cinza
+CIANO           EQU 0F0CFH      ; cor do pixel azul ciano
 
 
 ; #######################################################################
 ;  ZONA DE DADOS 
 ; #######################################################################
 
-	PLACE		3000H				
+    PLACE       3000H               
 
 DEF_ASTEROIDE_MINERAVEL:    ; tabela que define o asteroide mineravel
-	WORD		5, 5        ; largura e altura do asteroide
-	WORD		0, VERDE, VERDE, VERDE, 0
-    WORD		VERDE, VERDE, VERDE, VERDE, VERDE
-    WORD		VERDE, VERDE, VERDE, VERDE, VERDE
-    WORD		VERDE, VERDE, VERDE, VERDE, VERDE
-    WORD		0, VERDE, VERDE, VERDE, 0
+    WORD        5, 5        ; largura e altura do asteroide
+    WORD        0, VERDE, VERDE, VERDE, 0
+    WORD        VERDE, VERDE, VERDE, VERDE, VERDE
+    WORD        VERDE, VERDE, VERDE, VERDE, VERDE
+    WORD        VERDE, VERDE, VERDE, VERDE, VERDE
+    WORD        0, VERDE, VERDE, VERDE, 0
 
-DEF_SONDA:					; tabela que define a sonda
-	WORD		1, 1        ; largura e altura da sonda
-	WORD	    AMARELO
+DEF_ASTEROIDE_NAO_MINERAVEL:    ; tabela que define o asteroide nao mineravel
+    WORD        5, 5        ; largura e altura do asteroide
+    WORD        VERMELHO, 0, VERMELHO, 0, VERMELHO
+    WORD        0, VERMELHO, 0, VERMELHO, 0
+    WORD        VERMELHO, 0, VERMELHO, 0, VERMELHO
+    WORD        0, VERMELHO, 0, VERMELHO, 0
+    WORD        VERMELHO, 0, VERMELHO, 0, VERMELHO
+
+DEF_SONDA:                  ; tabela que define a sonda
+    WORD        1, 1        ; largura e altura da sonda
+    WORD        AMARELO
 
 DEF_PAINEL_INSTRUMENTOS:    ; tabela que define o painel de instrumentos
     WORD        15, 5       ; largura e altura do painel de instrumentos
     WORD        0, 0, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, 0, 0
-    WORD        0, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, 0
-    WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
-    WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
-    WORD        VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO, VERMELHO
+    WORD        0, VERMELHO, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, VERMELHO, 0
+    WORD        VERMELHO, CINZA, CINZA, CIANO, CINZA, CINZA, CINZA, AMARELO, ROSA, AMARELO, ROSA, AMARELO, CINZA, CINZA, VERMELHO
+    WORD        VERMELHO, CINZA, CIANO, CINZA, CIANO, CINZA, CINZA, ROSA, AMARELO, ROSA, AMARELO, ROSA, CINZA, CINZA, VERMELHO
+    WORD        VERMELHO, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, CINZA, VERMELHO
     
+DEF_LUZES_1:                ; tabela que define o primeiro sprite das luzes
+    WORD        5, 2        ; largura e altura das luzes
+    WORD        AMARELO, ROSA, AMARELO, ROSA, AMARELO
+    WORD        ROSA, AMARELO, ROSA, AMARELO, ROSA
+
+DEF_LUZES_2:                ; tabela que define o segundo sprite das luzes
+    WORD        5, 2        ; largura e altura das luzes
+    WORD        ROSA, AMARELO, ROSA, AMARELO, ROSA
+    WORD        AMARELO, ROSA, AMARELO, ROSA, AMARELO
+
 VALOR_DISPLAY:              ; valor no display
     WORD 100                  
+
+SPAWN_ASTEROIDE:
+    WORD 0, 1
+    WORD 30, -1
+    WORD 30, 0
+    WORD 30, 1
+    WORD 59, -1
 
 LINHA_ASTEROIDE:
     WORD 0                  ; valor da linha do pixel-posição do asteroide
@@ -76,6 +106,8 @@ LINHA_SONDA:                ; valor da linha do pixel-posição da sonda
 COLUNA_SONDA:               ; valor da linha do pixel-posição da sonda
     WORD 32 
 
+ESTADO_JOGO:
+    WORD 0                  ; 0 = inativo, 1 = ativo
 ; **********************************************************************
 ; * Código
 ; **********************************************************************
@@ -85,7 +117,7 @@ PLACE 1000H
 ; inicialização da stack
 
 STACK 100H
-SP_init:
+SP_init_prog_princ:
 
 STACK 100H
 SP_init_teclado:
@@ -93,63 +125,70 @@ SP_init_teclado:
 STACK 100H
 SP_init_energia:
 
+STACK 100H
+SP_init_asteroide:
+
+STACK 100H
+SP_init_nave:
+
 tecla_carregada:
     LOCK 0              ; LOCK para o teclado comunicar aos restantes processos que tecla detetou
 
-relogio_energia:
+relogio_asteroide:
     LOCK 0              ; LOCK para a rotina de interrupção comunicar ao processo boneco que a interrupção ocorreu
+    
+evento_int_1:
+    LOCK 0              ; LOCK para a rotina de interrupção comunicar ao processo sonda que a interrupção ocorreu
+
+relogio_energia:
+    LOCK 0              ; LOCK para a rotina de interrupção comunicar ao processo energia que a interrupção ocorreu
+
+relogio_nave:
+    LOCK 0              ; LOCK para a rotina de interrupção comunicar ao processo nave que a interrupção ocorreu
+
+pausa:
+    LOCK 0              ; LOCK para quando o jogo está no estado inativo
 
 ; Tabela das rotinas de interrupção
 tab:
-    WORD 0         ; rotina de atendimento da interrupção 0
-    WORD 0         ; rotina de atendimento da interrupção 1
+    WORD rot_int_0          ; rotina de atendimento da interrupção 0
+    WORD 0                  ; rotina de atendimento da interrupção 1
     WORD rot_int_2          ; rotina de atendimento da interrupção 2
-    WORD 0         ; rotina de atendimento da interrupção 3
+    WORD rot_int_3          ; rotina de atendimento da interrupção 3
+
 
 PLACE 0 ; o código começa na posição 0
 
 inicializacoes:
-    MOV SP, SP_init
+    MOV SP, SP_init_prog_princ
+    MOV BTE, tab                        ; inicializa BTE (registo de Base da Tabela de Exceções)
 
-    MOV  BTE, tab           ; inicializa BTE (registo de Base da Tabela de Exceções)
+    MOV  [APAGA_AVISO], R1              ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
+    MOV  [APAGA_ECRÃ], R1               ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
+    MOV   R1, 0                         ; cenário de fundo número 0
+    MOV  [SELECIONA_CENARIO_FUNDO], R1  ; seleciona o cenário de fundo
+    MOV   R1, 3                         ; cenário de fundo número 0
+    MOV  [SELECIONA_CENARIO_SOBREPOSTO], R1 ; apaga cenário sobreposto
+    MOV  R4, DISPLAYS                   ; endereço do periférico dos displays
+    MOV  R1, 0100H                      ; Valor correspondente a 100 decimal no display
+    MOV  [R4], R1                       ; Altera o valor no display
 
-    MOV  [APAGA_AVISO], R1	            ; apaga o aviso de nenhum cenário selecionado (o valor de R1 não é relevante)
-    MOV  [APAGA_ECRÃ], R1	            ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
-    MOV	  R1, 0			                ; cenário de fundo número 0
-    MOV  [SELECIONA_CENARIO_FUNDO], R1	; seleciona o cenário de fundo
+    EI0                                 ; permite interrupções 0
+    EI2                                 ; permite interrupções 2
+    EI3                                 ; permite interrupções 3
+    EI                                  ; permite interrupções (geral)
 
-    EI2
-    EI
-
-    CALL teclado_inicio
+    ; criacao dos processos
+    CALL teclado
     CALL energia
+    CALL asteroide
+    CALL nave
 
-desenha_asteroide:          	
-	MOV	R0, DEF_ASTEROIDE_MINERAVEL	; endereço da tabela que define o asteroide
-    MOV R1, [LINHA_ASTEROIDE]       ; linha da posição do asteroide
-    MOV R2, [COLUNA_ASTEROIDE]      ; coluna da posição do asteroide
-    CALL desenha_boneco             ; desenha o asteroide
-
-dsenha_sonda:          	
-	MOV	R0, DEF_SONDA			    ; endereço da tabela que define a sonda
+desenha_sonda:              
+    MOV R0, DEF_SONDA               ; endereço da tabela que define a sonda
     MOV R1, [LINHA_SONDA]           ; linha da posição da sonda
     MOV R2, [COLUNA_SONDA]          ; coluna da posição da sonda
     CALL desenha_boneco             ; desenha a sonda
-
-desenha_painel:            
-    MOV R0, DEF_PAINEL_INSTRUMENTOS ; endereço da tabela que define o painel
-    MOV R1, 27                      ; linha da posição do painel
-    MOV R2, 25                      ; coluna da posição do painel
-    CALL desenha_boneco             ; desenha o painel
-
-; #######################################################################
-; COMANDO - executa a ação correspondente ao input
-;                 
-;
-; Argumentos:   
-;             R6 - input
-; #######################################################################   
-
 
 comando:
 ; R6 - input
@@ -158,51 +197,20 @@ comando_inicio:
 
 ; redireciona para a ação correspondente ao input
 
-
-    MOV R6, [tecla_carregada] ; bloqueia neste LOCK até uma tecla ser carregada
-    CMP  R6, 0
-    JZ   comando_aumenta_display    ; input = 0 -> Aumenta o display em 1 unidade
-    CMP  R6, 1
-    JZ   comando_diminui_display    ; input = 1 -> Diminui o display em 1 unidade
-    CMP  R6, 2
-    JZ   comando_move_asteroide     ; input = 2 -> Move o asteróide
+    MOV  R6, [tecla_carregada] ; bloqueia neste LOCK até uma tecla ser carregada
     CMP  R6, 3
     JZ   comando_move_sonda         ; input = 3 -> Move a sonda
-    MOV R1, 0CH
+    MOV  R1, 0CH
     CMP  R6, R1
     JZ   comando_comeca_jogo        ; input = C -> Começa jogo
-    JMP  comando_inicio               
-    
-comando_aumenta_display:
-    MOV  R4, DISPLAYS           ; endereço do periférico dos displays
-    MOV  R1, [VALOR_DISPLAY]    ; Obtém o valor atual do display
-    INC  R1                     ; Adiciona 1 a esse valor
-    MOV  [VALOR_DISPLAY], R1    ; Altera o valor na memória
-    MOV  [R4], R1               ; Altera o valor no display
-    JMP  comando_inicio
+    MOV  R1, 0DH
+    CMP  R6, R1
+    JZ   comando_altera_estado
+    MOV  R1, 0EH
+    CMP  R6, R1
+    JZ   comando_fim_jogo        ; input = C -> Começa jogo
+    JMP  comando_inicio                
 
-comando_diminui_display:
-    MOV  R4, DISPLAYS           ; endereço do periférico dos displays
-    MOV  R1, [VALOR_DISPLAY]    ; Obtém o valor atual do display
-    SUB  R1, 1                  ; Subtrai 1 a esse valor
-    MOV  [VALOR_DISPLAY], R1    ; Altera o valor na memória
-    MOV  [R4], R1               ; Altera o valor no display
-    JMP  comando_inicio
-
-comando_move_asteroide:
-    MOV R0, DEF_ASTEROIDE_MINERAVEL     ; Obtém o endereço do asteróide
-    MOV R1, [LINHA_ASTEROIDE]           ; Obtém a sua posição (linha)
-    MOV R2, [COLUNA_ASTEROIDE]          ; Obtém a sua posição (coluna)
-    CALL apaga_boneco                   ; Rotina para apagar o boneco
-    INC R1                              ; Incremento da sua posição (1 na diagonal)
-    INC R2
-    MOV [LINHA_ASTEROIDE], R1           ; Atualização da posição do asteróide na memória
-    MOV [COLUNA_ASTEROIDE], R2
-    CALL desenha_boneco                 ; Rotina para desenhar o boneco
-    MOV R0, 0
-    MOV [REPRODUZ_SOM], R0              ; Reproduz som
-    JMP  comando_inicio
-    
 comando_move_sonda:
     MOV R0, DEF_SONDA       ; Obtém o endereço da sonda
     MOV R1, [LINHA_SONDA]   ; Obtém a sua posição (linha)
@@ -217,20 +225,60 @@ comando_move_sonda:
 comando_comeca_jogo:
     MOV   R1, 0                         ; cenário de fundo número 0
     MOV  [SELECIONA_CENARIO_FUNDO], R1  ; seleciona o cenário de fundo
-    MOV  R4, DISPLAYS           ; endereço do periférico dos displays
-    MOV  R1, 64H                ; Valor correspondente a 100 decimal (energia máxima)
-    MOV  [VALOR_DISPLAY], R1    ; Altera o valor na memória
-    MOV  R1, 0100H              ; Valor correspondente a 100 decimal no display
-    MOV  [R4], R1               ; Altera o valor no display
+    MOV  [APAGA_CENARIO_SOBREPOSTO], R1  
+    MOV  R4, DISPLAYS                   ; endereço do periférico dos displays
+    MOV  R1, 64H                        ; Valor correspondente a 100 decimal (energia máxima)
+    MOV  [VALOR_DISPLAY], R1            ; Altera o valor na memória
+    MOV  R1, 0100H                      ; Valor correspondente a 100 decimal no display
+    MOV  [R4], R1                       ; Altera o valor no display
+    CALL comando_unpause_init
     JMP  comando_inicio
 
+comando_altera_estado:
+    MOV R1, [ESTADO_JOGO]
+    CMP R1, 1
+    JZ comando_altera_estado_inativo
+    JMP comando_altera_estado_ativo
+comando_altera_estado_inativo:
+    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1
+    CALL comando_pause_init
+    JMP comando_inicio
+comando_altera_estado_ativo: 
+    MOV  [APAGA_CENARIO_SOBREPOSTO], R1  
+    CALL comando_unpause_init
+    JMP comando_inicio
 
-; **********************************************************************
-; ROT_INT_2 -   Rotina de atendimento da interrupção 2
-; **********************************************************************
-rot_int_2:
-    MOV [relogio_energia], R0  ; desbloqueia processo energia 
-    RFE
+comando_pause_init:
+    PUSH R1 
+    MOV R1, 0               ; cenário de fundo 1
+
+comando_pause_pause:
+    DI
+    MOV [ESTADO_JOGO], R1
+
+comando_pause_ret:
+    POP R1 
+    RET 
+
+comando_unpause_init:
+    PUSH R1 
+    MOV R1, 1               ; cenário de fundo 0
+comando_unpause_unpause:
+    EI
+    MOV [ESTADO_JOGO], R1
+    MOV [pausa], R1
+    
+comando_unpause_ret:
+    POP R1 
+    RET 
+
+comando_fim_jogo:
+    CALL comando_pause_init
+    MOV R1, 2
+    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1
+    JMP comando_inicio
+
+
 
 ; **********************************************************************
 ; Processo
@@ -242,48 +290,51 @@ rot_int_2:
 
 PROCESS SP_init_teclado  ; indicação de que a rotina que se segue é um processo,
                         ; com indicação do valor para inicializar o SP
-teclado_inicio:		
+
+teclado:
+
+teclado_inicio:     
 
 ; inicializações do teclado
 
-    MOV  R2, TEC_LIN   		    ; endereço do periférico das linhas
-    MOV  R3, TEC_COL   		    ; endereço do periférico das colunas
-    MOV  R4, DISPLAYS  		    ; endereço do periférico dos displays
-    MOV  R5, MASCARA_0F   	    ; para isolar os 4 bits de menor peso
+    MOV  R2, TEC_LIN            ; endereço do periférico das linhas
+    MOV  R3, TEC_COL            ; endereço do periférico das colunas
+    MOV  R4, DISPLAYS           ; endereço do periférico dos displays
+    MOV  R5, MASCARA_0F         ; para isolar os 4 bits de menor peso
 
 ; corpo principal do programa
 
 teclado_ciclo:
     MOV R6, -1        ; valor que representa nenhuma tecla premida
-	MOV R1, LINHA     ; o ciclo começa na linha 4 (1000b)
+    MOV R1, LINHA     ; o ciclo começa na linha 4 (1000b)
 
-teclado_espera_tecla:				; neste ciclo espera-se até uma tecla ser premida
+teclado_espera_tecla:               ; neste ciclo espera-se até uma tecla ser premida
     
     YIELD
 
-	MOVB [R2], R1      		        ; escrever no periférico de saída (linhas)
-	MOVB R0, [R3]      		        ; ler do periférico de entrada (colunas)
-	AND  R0, R5        		        ; elimina bits para além dos bits 0-3
-	JNZ  teclado_tecla_premida 		; verifica se alguma tecla foi premida
-	SHR  R1, 1        		        ; passa para a próxima linha
-	JNZ teclado_espera_tecla   		; verifica se a linha anula-se (0000b)
-	MOV R1, LINHA      	        	; restora o valor da linha a 8 (1000b)
-	JMP teclado_espera_tecla   		; repete o ciclo
+    MOVB [R2], R1                   ; escrever no periférico de saída (linhas)
+    MOVB R0, [R3]                   ; ler do periférico de entrada (colunas)
+    AND  R0, R5                     ; elimina bits para além dos bits 0-3
+    JNZ  teclado_tecla_premida      ; verifica se alguma tecla foi premida
+    SHR  R1, 1                      ; passa para a próxima linha
+    JNZ teclado_espera_tecla        ; verifica se a linha anula-se (0000b)
+    MOV R1, LINHA                   ; restora o valor da linha a 8 (1000b)
+    JMP teclado_espera_tecla        ; repete o ciclo
 
-teclado_tecla_premida:	       		
-	CALL conversao                  ; converte a linha e coluna da tecla premida para um só dígito hexadecimal
+teclado_tecla_premida:              
+    CALL conversao                  ; converte a linha e coluna da tecla premida para um só dígito hexadecimal
     MOV [tecla_carregada], R6
-    
-teclado_ha_tecla:              		; neste ciclo espera-se até NENHUMA tecla estar premida
+
+teclado_ha_tecla:                   ; neste ciclo espera-se até NENHUMA tecla estar premida
 
     YIELD
 
-	MOVB [R2], R1      		        ; escrever no periférico de saída (linhas)
-	MOVB R0, [R3]      		        ; ler do periférico de entrada (colunas)
-	AND  R0, R5        		        ; elimina bits para além dos bits 0-3
-	CMP  R0, 0        		        ; há tecla premida?
-	JNZ  teclado_ha_tecla      		; se ainda houver uma tecla premida, espera até não haver
-	JMP  teclado_ciclo  			; repete ciclo
+    MOVB [R2], R1                   ; escrever no periférico de saída (linhas)
+    MOVB R0, [R3]                   ; ler do periférico de entrada (colunas)
+    AND  R0, R5                     ; elimina bits para além dos bits 0-3
+    CMP  R0, 0                      ; há tecla premida?
+    JNZ  teclado_ha_tecla           ; se ainda houver uma tecla premida, espera até não haver
+    JMP  teclado_ciclo              ; repete ciclo
 
 ; **********************************************************************
 ; Processo
@@ -303,8 +354,16 @@ PROCESS SP_init_energia ; indicação de que a rotina que se segue é um process
                         ;R5 - resultado
 
 energia:
+
+energia_pausa:
     MOV R0, [relogio_energia] ; lê o LOCK e bloqueia até a interrupção escrever nele
 
+    MOV R1, [ESTADO_JOGO] ; Obtêm o estado atual do jogo
+    CMP R1, 1             ; Se estiver ativo, salta para o processo
+    JZ energia_init
+    MOV R0, [pausa]       ; Se estiver inativo, bloqueia até que volte a estar ativo
+
+energia_init:
     MOV R1, [VALOR_DISPLAY] ; Obtém valor atual da energia
     MOV R2, 3               ; Valor de decremento da energia (3%)
     SUB R1, R2              ; Decremento da energia
@@ -312,6 +371,7 @@ energia:
     MOV R2, 1000            ; Fator para converter um número de 3 dígitos
     MOV R3, 10              ; Valor para obter diferentes potências de 10
     MOV R5, 0               ; Inicialização a 0
+
 converte_energia:
     MOD R1, R2              ; número: o valor a converter nesta iteração
                             ; fator: uma potência de 10 (para obter os dígitos)
@@ -329,6 +389,109 @@ altera_energia:
     MOV  R4, DISPLAYS           ; endereço do periférico dos displays
     MOV  [R4], R5              ; Altera o valor no display
     JMP energia
+
+; **********************************************************************
+; Processo
+;
+; ASTEROIDE - Processo que executa as ações relativas ao asteroide, como o seu
+; movimento e a rotina de colisão com a nave
+;
+; **********************************************************************
+
+PROCESS SP_init_asteroide  ; indicação de que a rotina que se segue é um processo,
+                            ; com indicação do valor para inicializar o SP
+
+asteroide:
+
+asteroide_parametros:
+    MOV R5, [TEC_COL]
+    SHR R5, 4
+    MOV R6, R5
+    MOV R8, 5
+    MOD R5, R8
+    MOV R8, 4
+    MOD R6, R8
+    JZ asteroide_mineravel
+
+asteroide_nao_mineravel:
+    MOV R0, DEF_ASTEROIDE_NAO_MINERAVEL ; endereço da tabela que define o asteroide nao mineravel
+    JMP asteroide_spawn
+
+asteroide_mineravel:
+    MOV R0, DEF_ASTEROIDE_MINERAVEL ; endereço da tabela que define o asteroide
+
+asteroide_spawn:
+    MUL R5, R8                       ; cada endereço da tabela tem 2 WORDS (4 bytes)
+    MOV R9, SPAWN_ASTEROIDE
+    MOV R2, [R9 + R5]  ; coluna de spawn do asteroide
+    ADD R5, 2                       ; o incremento do asteroide encontra-se na segunda WORD do endereço
+    MOV R7, [R9 + R5]  ; incremento
+    MOV R1, 0                       ; linha de spawn do asteroide
+
+asteroide_ciclo:
+    CALL desenha_boneco             ; desenha o asteroide
+    MOV R3, [relogio_asteroide]     ; lê o LOCK e bloqueia até a interrupção escrever nele
+                                    ; Quando bloqueia, passa o controlo para outro processo
+                                    ; Como não há valor a transmitir, o registo pode ser um qualquer
+    MOV R10, [ESTADO_JOGO] ; Obtêm o estado atual do jogo
+    CMP R10, 1             ; Se estiver ativo, salta para o processo
+    JZ asteroide_movimento
+    MOV R11, [pausa]       ; Se estiver inativo, bloqueia até que volte a estar ativo
+asteroide_movimento:
+    CALL apaga_boneco               ; Rotina para apagar o boneco
+    ADD R1, 1                       ; Incremento da linha
+    ADD R2, R7                      ; incremento da coluna
+    MOV [LINHA_ASTEROIDE], R1       ; Atualização da posição do asteróide na memória
+    MOV [COLUNA_ASTEROIDE], R2
+    ;CALL testa_limites
+    JMP  asteroide_ciclo            ; este processo é um ciclo infinito. Não é bloqueante devido ao LOCK
+    
+
+; **********************************************************************
+; Processo
+;
+; NAVE - Processo que executa as ações relativas ao painel de instrumentos,
+; isto é, a animação das luzes
+;
+; **********************************************************************
+
+PROCESS SP_init_nave  ; indicação de que a rotina que se segue é um processo,
+                            ; com indicação do valor para inicializar o SP
+nave:            
+    MOV R0, DEF_PAINEL_INSTRUMENTOS ; endereço da tabela que define o painel
+    MOV R1, 27                      ; linha da posição do painel
+    MOV R2, 25                      ; coluna da posição do painel
+    CALL desenha_boneco             ; desenha o painel
+    MOV R4, 1                       ; este registo representa o sprite em que as luzes se encontram no instante
+
+nave_pausa:
+    MOV R3, [relogio_nave]          ; lê o LOCK e bloqueia até a interrupção escrever nele
+                                    ; Quando bloqueia, passa o controlo para outro processo
+                                    ; Como não há valor a transmitir, o registo pode ser um qualquer
+    MOV R10, [ESTADO_JOGO] ; Obtêm o estado atual do jogo
+    CMP R10, 1             ; Se estiver ativo, salta para o processo
+    JZ nave_ciclo
+    MOV R11, [pausa]       ; Se estiver inativo, bloqueia até que volte a estar ativo
+nave_ciclo:
+    CMP R4, 1
+    JZ nave_sprite_2
+
+nave_sprite_1:
+    MOV R0, DEF_LUZES_1             ; endereço da tabela que define o primeiro sprite das luzes
+    MOV R1, 29                      ; linha da posição do painel
+    MOV R2, 32                      ; coluna da posição do painel
+    CALL desenha_boneco
+    INC R4
+    JMP nave_pausa
+
+nave_sprite_2:
+    MOV R0, DEF_LUZES_2             ; endereço da tabela que define o segundo sprite das luzes
+    MOV R1, 29                      ; linha da posição do painel
+    MOV R2, 32                      ; coluna da posição do painel
+    CALL desenha_boneco
+    SUB R4, 1
+    JMP nave_pausa
+
 ; ***********************************************************************
 ; * ROTINAS
 ; ***********************************************************************   
@@ -343,48 +506,48 @@ altera_energia:
 ;             R6 - resultado
 ; #######################################################################
     
-conversao:			
+conversao:          
 
 conversao_inicio:
-	PUSH R0
-	PUSH R1
-	PUSH R3
-	MOV R6, 0       ; inicializa a linha (decimal) a 0
-	MOV R3, 0       ; inicializa a coluna (decimal) a 0
-	
+    PUSH R0
+    PUSH R1
+    PUSH R3
+    MOV R6, 0       ; inicializa a linha (decimal) a 0
+    MOV R3, 0       ; inicializa a coluna (decimal) a 0
+    
 conversao_linha:
 
 ; a linha em formato decimal obtém-se contando o número de SHR precisos para anular o valor da linha
 
-	SHR R1, 1       
-	INC R6           
-	CMP R1, 0
-	JNZ conversao_linha
-	SUB R6, 1
-	    
+    SHR R1, 1       
+    INC R6           
+    CMP R1, 0
+    JNZ conversao_linha
+    SUB R6, 1
+        
 conversao_coluna:
 
 ; a linha em formato decimal obtém-se contando o número de SHR precisos para anular o valor da coluna
 
-	SHR R0, 1
-	INC R3
-	CMP R0, 0
-	JNZ conversao_coluna
-	SUB R3, 1
-	
+    SHR R0, 1
+    INC R3
+    CMP R0, 0
+    JNZ conversao_coluna
+    SUB R3, 1
+    
 conversao_soma:
 
 ; a tecla permida obtêm-se com a fórmula 4*linha + coluna
 
-	MOV R1, 4
-	MUL R6, R1
-	ADD R6, R3
-	
+    MOV R1, 4
+    MUL R6, R1
+    ADD R6, R3
+    
 conversao_ret:
-	POP R3
-	POP R1
-	POP R0
-	RET
+    POP R3
+    POP R1
+    POP R0
+    RET
 
 ; #######################################################################
 ; DESENHA_BONECO - desenha um boneco a partir da sua tabela definida
@@ -415,21 +578,21 @@ desenha_boneco_init:
     PUSH R6
 
     MOV R6, R2              ; guarda a primeira coluna do boneco
-    MOV	R3, [R0]			; obtém a largura do boneco
+    MOV R3, [R0]            ; obtém a largura do boneco
     ADD R3, R2              ; adiciona a coluna da posição do boneco à largura
-	ADD	R0, 2			    ; próxima posição na tabela (Altura)
+    ADD R0, 2               ; próxima posição na tabela (Altura)
     MOV R4, [R0]            ; obtém a altura do boneco
     ADD R4, R1              ; adiciona a linha da posição do boneco à altura
     ADD R0, 2
 
 desenha_boneco_linha:
-	MOV	R5, [R0]			; obtém a cor do próximo pixel do boneco
-	MOV [DEFINE_LINHA], R1	; seleciona a linha
-	MOV [DEFINE_COLUNA], R2	; seleciona a coluna
-	MOV [DEFINE_PIXEL], R5	; altera a cor do pixel na linha e coluna selecionadas
-	ADD R0, 2			    ; endereço da cor do próximo pixel 
+    MOV R5, [R0]            ; obtém a cor do próximo pixel do boneco
+    MOV [DEFINE_LINHA], R1  ; seleciona a linha
+    MOV [DEFINE_COLUNA], R2 ; seleciona a coluna
+    MOV [DEFINE_PIXEL], R5  ; altera a cor do pixel na linha e coluna selecionadas
+    ADD R0, 2               ; endereço da cor do próximo pixel 
     INC R2                  ; próxima coluna
-    CMP R2, R3			    ; vê se chegou ao final da linha
+    CMP R2, R3              ; vê se chegou ao final da linha
     JN desenha_boneco_linha; continua até percorrer toda a largura do objeto
     MOV R2, R6              ; restora o valor da coluna
     INC R1                  ; passa para a próxima linha
@@ -458,7 +621,7 @@ desenha_boneco_ret:
 ; #######################################################################    
 
 
-apaga_boneco:       		; apaga o boneco a partir da tabela
+apaga_boneco:               ; apaga o boneco a partir da tabela
     ; R0 - endereço
     ; R1 - linha
     ; R2 - coluna
@@ -477,19 +640,19 @@ apaga_boneco_init:
     PUSH R6
 
     MOV R6, R2              ; guarda a primeira coluna do boneco
-    MOV	R3, [R0]			; obtém a largura do boneco
+    MOV R3, [R0]            ; obtém a largura do boneco
     ADD R3, R2              ; adiciona a coluna da posição do boneco à largura
-	ADD	R0, 2			    ; próxima posição na tabela (Altura)
+    ADD R0, 2               ; próxima posição na tabela (Altura)
     MOV R4, [R0]            ; obtém a altura do boneco
     ADD R4, R1              ; adiciona a linha da posição do boneco à altura
 
 apaga_boneco_linha:
-	MOV	R5, 0			    ; obtém a cor do próximo pixel do boneco
-	MOV [DEFINE_LINHA], R1	; seleciona a linha
-	MOV [DEFINE_COLUNA], R2	; seleciona a coluna
-	MOV [DEFINE_PIXEL], R5	; altera a cor do pixel na linha e coluna selecionadas
+    MOV R5, 0               ; obtém a cor do próximo pixel do boneco
+    MOV [DEFINE_LINHA], R1  ; seleciona a linha
+    MOV [DEFINE_COLUNA], R2 ; seleciona a coluna
+    MOV [DEFINE_PIXEL], R5  ; altera a cor do pixel na linha e coluna selecionadas
     INC R2                  ; próxima coluna
-    CMP R2, R3			    ; vê se chegou ao final da linha
+    CMP R2, R3              ; vê se chegou ao final da linha
     JN apaga_boneco_linha   ; continua até percorrer toda a largura do objeto
     MOV R2, R6              ; restora o valor da coluna
     INC R1                  ; passa para a próxima linha
@@ -506,4 +669,33 @@ apaga_boneco_ret:
     POP R0
     RET
 
+; ***********************************************************************
+; * INTERRUPÇÕES
+; ***********************************************************************   
 
+; **********************************************************************
+; ROT_INT_0 -   Rotina de atendimento da interrupção 0
+;           Faz simplesmente uma escrita no LOCK que o processo asteroide lê
+; **********************************************************************
+
+rot_int_0:
+    MOV [relogio_asteroide], R0 ; desbloqueia processo boneco (qualquer registo serve) 
+    RFE
+
+; **********************************************************************
+; ROT_INT_2 -   Rotina de atendimento da interrupção 2
+;           Faz simplesmente uma escrita no LOCK que o processo energia lê
+; **********************************************************************
+
+rot_int_2:
+    MOV [relogio_energia], R0  ; desbloqueia processo energia 
+    RFE
+
+; **********************************************************************
+; ROT_INT_3 -   Rotina de atendimento da interrupção 3
+;           Faz simplesmente uma escrita no LOCK que o processo nave lê
+; **********************************************************************
+
+rot_int_3:
+    MOV  [relogio_nave], R0 ; desbloqueia processo nave (qualquer registo serve) 
+    RFE
