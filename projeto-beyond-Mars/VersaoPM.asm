@@ -31,6 +31,11 @@ REPRODUZ_SOM EQU COMANDOS + 5AH         ; endereço do comando para reproduzir o
 
 ENERGIA_MAX     EQU 1100H
 
+PAUSA   EQU 0 ; ESTADO DO JOGO DE PAUSA
+JOGAVEL EQU 1 ; ESTADO DO JOGO JOGÁVEL
+INICIO  EQU 2 ; ESTADO DO JOGO NA TELA INICIAL
+FIM     EQU 3 ; ESTADO DO JOGO TERMINADO
+
 VERMELHO        EQU 0FF00H      ; cor do pixel vermelho
 VERDE           EQU 0F0F0H      ; cor do pixel verde
 AZUL            EQU 0F00FH      ; cor do pixel azul
@@ -108,6 +113,9 @@ COLUNA_SONDA:               ; valor da linha do pixel-posição da sonda
 
 ESTADO_JOGO:
     WORD 0                  ; 0 = inativo, 1 = ativo
+
+RESTART:
+    WORD 0
 ; **********************************************************************
 ; * Código
 ; **********************************************************************
@@ -172,6 +180,8 @@ inicializacoes:
     MOV  R4, DISPLAYS                   ; endereço do periférico dos displays
     MOV  R1, 0100H                      ; Valor correspondente a 100 decimal no display
     MOV  [R4], R1                       ; Altera o valor no display
+    MOV R1, INICIO 
+    MOV [ESTADO_JOGO], R1
 
     EI0                                 ; permite interrupções 0
     EI2                                 ; permite interrupções 2
@@ -205,13 +215,13 @@ comando_inicio:
     JZ   comando_comeca_jogo        ; input = C -> Começa jogo
     MOV  R1, 0DH
     CMP  R6, R1
-    JZ   comando_altera_estado
+    JZ   comando_altera_estado      ; input = E -> Termina jogo
     MOV  R1, 0EH
     CMP  R6, R1
-    JZ   comando_fim_jogo        ; input = C -> Começa jogo
+    JZ   comando_fim_jogo           ; input = E -> Termina jogo
     JMP  comando_inicio                
 
-comando_move_sonda:
+comando_move_sonda: 
     MOV R0, DEF_SONDA       ; Obtém o endereço da sonda
     MOV R1, [LINHA_SONDA]   ; Obtém a sua posição (linha)
     MOV R2, [COLUNA_SONDA]  ; Obtém a sua posição (coluna)
@@ -223,6 +233,10 @@ comando_move_sonda:
     JMP  comando_inicio
 
 comando_comeca_jogo:
+    MOV R3, [ESTADO_JOGO]
+    MOV R2, INICIO
+    CMP R3, R2
+    JLT comando_inicio
     MOV   R1, 0                         ; cenário de fundo número 0
     MOV  [SELECIONA_CENARIO_FUNDO], R1  ; seleciona o cenário de fundo
     MOV  [APAGA_CENARIO_SOBREPOSTO], R1  
@@ -232,6 +246,11 @@ comando_comeca_jogo:
     MOV  R1, 0100H                      ; Valor correspondente a 100 decimal no display
     MOV  [R4], R1                       ; Altera o valor no display
     CALL comando_unpause_init
+    CMP R3, FIM
+    JNZ comando_inicio
+comando_comeca_jogo_restart:
+    MOV R1, 1
+    MOV [RESTART], R1
     JMP  comando_inicio
 
 comando_altera_estado:
@@ -240,10 +259,18 @@ comando_altera_estado:
     JZ comando_altera_estado_inativo
     JMP comando_altera_estado_ativo
 comando_altera_estado_inativo:
+    MOV R1, [ESTADO_JOGO]
+    MOV R2, JOGAVEL
+    CMP R1, R2
+    JNZ comando_inicio
     MOV [SELECIONA_CENARIO_SOBREPOSTO], R1
     CALL comando_pause_init
     JMP comando_inicio
 comando_altera_estado_ativo: 
+    MOV R1, [ESTADO_JOGO]
+    MOV R2, PAUSA
+    CMP R1, R2
+    JNZ comando_inicio
     MOV  [APAGA_CENARIO_SOBREPOSTO], R1  
     CALL comando_unpause_init
     JMP comando_inicio
@@ -273,9 +300,15 @@ comando_unpause_ret:
     RET 
 
 comando_fim_jogo:
+    MOV R1, [ESTADO_JOGO]
+    MOV R2, INICIO
+    CMP R1, R2
+    JZ comando_inicio
     CALL comando_pause_init
     MOV R1, 2
     MOV [SELECIONA_CENARIO_SOBREPOSTO], R1
+    MOV R1, FIM
+    MOV [ESTADO_JOGO], R1
     JMP comando_inicio
 
 
@@ -402,6 +435,8 @@ PROCESS SP_init_asteroide  ; indicação de que a rotina que se segue é um proc
                             ; com indicação do valor para inicializar o SP
 
 asteroide:
+    MOV R1, 0
+    MOV [RESTART], R1
 
 asteroide_parametros:
     MOV R5, [TEC_COL]
@@ -434,11 +469,14 @@ asteroide_ciclo:
                                     ; Quando bloqueia, passa o controlo para outro processo
                                     ; Como não há valor a transmitir, o registo pode ser um qualquer
     MOV R10, [ESTADO_JOGO] ; Obtêm o estado atual do jogo
-    CMP R10, 1             ; Se estiver ativo, salta para o processo
+    CMP R10, JOGAVEL             ; Se estiver ativo, salta para o processo
     JZ asteroide_movimento
     MOV R11, [pausa]       ; Se estiver inativo, bloqueia até que volte a estar ativo
 asteroide_movimento:
     CALL apaga_boneco               ; Rotina para apagar o boneco
+    MOV R11, [RESTART]
+    CMP R11, 1
+    JZ asteroide
     ADD R1, 1                       ; Incremento da linha
     ADD R2, R7                      ; incremento da coluna
     MOV [LINHA_ASTEROIDE], R1       ; Atualização da posição do asteróide na memória
