@@ -435,7 +435,7 @@ asteroide_movimento:
     ADD  R2, R7                     ; incremento da coluna
     MOV  [LINHA_ASTEROIDE], R1      ; Atualização da posição do asteróide na memória
     MOV  [COLUNA_ASTEROIDE], R2
-    CALL testa_limites_A
+    CALL testa_limites
     MOV  R5, 0
     CMP  R8, R5
     JZ   asteroide_parametros
@@ -534,7 +534,7 @@ sonda_spawn:
     MOV R6, [R9 + R5]               ; incremento
     MOV R1, 26                      ; linha de spawn da sonda
 
-ciclo_sonda:
+sonda_ciclo:
     CALL    desenha_boneco     ; desenha a sonda na sua posição atual
     MOV R3, [relogio_sonda]     ; lê o LOCK e bloqueia até a interrupção escrever nele
                                     ; Quando bloqueia, passa o controlo para outro processo
