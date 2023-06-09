@@ -36,6 +36,7 @@ JOGAVEL EQU 1 ; ESTADO DO JOGO JOGÁVEL
 INICIO  EQU 2 ; ESTADO DO JOGO NA TELA INICIAL
 FIM     EQU 3 ; ESTADO DO JOGO TERMINADO
 
+
 VERMELHO        EQU 0FF00H      ; cor do pixel vermelho
 VERDE           EQU 0F0F0H      ; cor do pixel verde
 AZUL            EQU 0F00FH      ; cor do pixel azul
@@ -215,7 +216,7 @@ comando_inicio:
     JZ   comando_comeca_jogo        ; input = C -> Começa jogo
     MOV  R1, 0DH
     CMP  R6, R1
-    JZ   comando_altera_estado      ; input = E -> Termina jogo
+    JZ   comando_altera_estado      ; input = D -> Pausa/Tira pausa
     MOV  R1, 0EH
     CMP  R6, R1
     JZ   comando_fim_jogo           ; input = E -> Termina jogo

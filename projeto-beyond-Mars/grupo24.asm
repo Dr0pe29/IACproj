@@ -364,28 +364,7 @@ energia:
 energia_init:
     MOV R1, [VALOR_DISPLAY] ; Obtém valor atual da energia
     MOV R2, 3               ; Valor de decremento da energia (3%)
-    SUB R1, R2              ; Decremento da energia
-    MOV [VALOR_DISPLAY], R1 ; Atualiza valor da energia em memória
-    MOV R2, 1000            ; Fator para converter um número de 3 dígitos
-    MOV R3, 10              ; Valor para obter diferentes potências de 10
-    MOV R5, 0               ; Inicialização a 0
-
-converte_energia:
-    MOD R1, R2              ; número: o valor a converter nesta iteração
-                            ; fator: uma potência de 10 (para obter os dígitos)
-
-    DIV R2, R3              ; prepara o próximo fator de divisão
-    CMP R2, 0               ; se fator = 0, termina
-    JZ altera_energia
-    MOV R4, R1              ; Preserva o número
-    DIV R4, R2              ; Obtém um dígito do valor decimal (0 a 9)
-    SHL R5, 4               ; desloca, para dar espaço ao novo dígito
-    OR R5, R4               ; vai compondo o resultado
-    JMP converte_energia
-
-altera_energia:
-    MOV  R4, DISPLAYS           ; endereço do periférico dos displays
-    MOV  [R4], R5              ; Altera o valor no display
+    CALL altera_energia_inicio
     JMP energia
 
 ; **********************************************************************
@@ -808,6 +787,50 @@ comando_unpause_ret:
     POP R1 
     RET 
 
+; #######################################################################
+; ALTERA_ENERGIA - altera a energia da nave, alterando também o display
+;
+; Argumentos:   
+;             R1 - Valor do display em memória
+;             R2 - Valor a decrementar
+; #######################################################################
+altera_energia_inicio:
+    PUSH R1
+    PUSH R2 
+    PUSH R3 
+    PUSH R4
+    PUSH R5
+
+    SUB R1, R2              ; Decremento da energia
+    MOV [VALOR_DISPLAY], R1 ; Atualiza valor da energia em memória
+    MOV R2, 1000            ; Fator para converter um número de 3 dígitos
+    MOV R3, 10              ; Valor para obter diferentes potências de 10
+    MOV R5, 0               ; Inicialização a 0
+
+altera_energia_converte:
+    MOD R1, R2              ; número: o valor a converter nesta iteração
+                            ; fator: uma potência de 10 (para obter os dígitos)
+
+    DIV R2, R3              ; prepara o próximo fator de divisão
+    CMP R2, 0               ; se fator = 0, termina
+    JZ altera_energia_memoria
+    MOV R4, R1              ; Preserva o número
+    DIV R4, R2              ; Obtém um dígito do valor decimal (0 a 9)
+    SHL R5, 4               ; desloca, para dar espaço ao novo dígito
+    OR R5, R4               ; vai compondo o resultado
+    JMP altera_energia_converte
+
+altera_energia_memoria:
+    MOV  R4, DISPLAYS           ; endereço do periférico dos displays
+    MOV  [R4], R5              ; Altera o valor no display
+
+altera_energia_ret:
+    POP R5
+    POP R4
+    POP R3
+    POP R2 
+    POP R1 
+    RET 
 ; ***********************************************************************
 ; * INTERRUPÇÕES
 ; ***********************************************************************   
