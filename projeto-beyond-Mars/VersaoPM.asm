@@ -17,25 +17,32 @@ TEC_COL          EQU 0E000H  ; endereço das colunas do teclado (periférico PIN
 LINHA            EQU 8       ; linha a testar (4ª linha, 1000b)
 MASCARA_0F       EQU 0FH     ; para isolar os 4 bits de menor peso
 
-COMANDOS        EQU 6000H               ; endereço de base dos comandos do MediaCenter
-DEFINE_LINHA    EQU COMANDOS + 0AH      ; endereço do comando para definir a linha
-DEFINE_COLUNA   EQU COMANDOS + 0CH      ; endereço do comando para definir a coluna
-DEFINE_PIXEL    EQU COMANDOS + 12H      ; endereço do comando para escrever um pixel
-APAGA_AVISO     EQU COMANDOS + 40H      ; endereço do comando para apagar o aviso de nenhum cenário selecionado
-APAGA_ECRÃ      EQU COMANDOS + 02H      ; endereço do comando para apagar todos os pixels já desenhados
-SELECIONA_CENARIO_FUNDO  EQU COMANDOS + 42H     ; endereço do comando para selecionar uma imagem de fundo
-SELECIONA_CENARIO_SOBREPOSTO  EQU COMANDOS + 46H     ; endereço do comando para selecionar uma imagem de fundo
-APAGA_CENARIO_SOBREPOSTO  EQU COMANDOS + 44H     ; endereço do comando para selecionar uma imagem de fundo
-SELECIONA_SOM  EQU COMANDOS + 48H       ; endereço do comando para selecionar um som
-REPRODUZ_SOM EQU COMANDOS + 5AH         ; endereço do comando para reproduzir o som selecionado
+COMANDOS                    EQU 6000H               ; endereço de base dos comandos do MediaCenter
+DEFINE_LINHA                EQU COMANDOS + 0AH      ; endereço do comando para definir a linha
+DEFINE_COLUNA               EQU COMANDOS + 0CH      ; endereço do comando para definir a coluna
+DEFINE_PIXEL                EQU COMANDOS + 12H      ; endereço do comando para escrever um pixel
+APAGA_AVISO                 EQU COMANDOS + 40H      ; endereço do comando para apagar o aviso de nenhum cenário selecionado
+APAGA_ECRÃ                  EQU COMANDOS + 02H      ; endereço do comando para apagar todos os pixels já desenhados
+SELECIONA_CENARIO_FUNDO     EQU COMANDOS + 42H      ; endereço do comando para selecionar uma imagem de fundo
+SELECIONA_CENARIO_SOBREPOSTO  EQU COMANDOS + 46H    ; endereço do comando para selecionar uma imagem de fundo transparente
+APAGA_CENARIO_SOBREPOSTO    EQU COMANDOS + 44H      ; endereço do comando para apagar uma imagem de fundo transparente
+SELECIONA_SOM               EQU COMANDOS + 48H      ; endereço do comando para selecionar um som
+REPRODUZ_SOM                EQU COMANDOS + 5AH      ; endereço do comando para reproduzir o som selecionado
 
-ENERGIA_MAX     EQU 1100H
+ALTURA_ASTEROIDE            EQU 4          ; a altura é 5 mas para chegar ao ultimo pixel apenas se soma 4
+LARGURA_ASTEROIDE           EQU 4          ; a largura é 5 mas para chegar ao ultimo pixel apenas se soma 4
+LINHA_MAX                   EQU 31         ; ultima linha do ecra  
 
-PAUSA   EQU 0 ; ESTADO DO JOGO DE PAUSA
-JOGAVEL EQU 1 ; ESTADO DO JOGO JOGÁVEL
-INICIO  EQU 2 ; ESTADO DO JOGO NA TELA INICIAL
-FIM     EQU 3 ; ESTADO DO JOGO TERMINADO
+LINHA_INIC_SONDA            EQU 26
+COLUNA_INIC_SONDA           EQU 32
 
+PAUSA           EQU 0 ; ESTADO DO JOGO DE PAUSA
+JOGAVEL         EQU 1 ; ESTADO DO JOGO JOGÁVEL
+INICIO          EQU 2 ; ESTADO DO JOGO NA TELA INICIAL
+FIM             EQU 3 ; ESTADO DO JOGO TERMINADO
+
+TRUE            EQU 1 ; 
+FALSE           EQU 0 ;
 
 VERMELHO        EQU 0FF00H      ; cor do pixel vermelho
 VERDE           EQU 0F0F0H      ; cor do pixel verde
@@ -116,7 +123,7 @@ ESTADO_JOGO:
     WORD 0                  ; 0 = inativo, 1 = ativo
 
 RESTART:
-    WORD 0
+    WORD 0                  ; valor que indica se é necessário resetar as rotinas 
 ; **********************************************************************
 ; * Código
 ; **********************************************************************
@@ -140,13 +147,16 @@ SP_init_asteroide:
 STACK 100H
 SP_init_nave:
 
+STACK 100H          
+SP_init_sonda:   
+
 tecla_carregada:
     LOCK 0              ; LOCK para o teclado comunicar aos restantes processos que tecla detetou
 
 relogio_asteroide:
     LOCK 0              ; LOCK para a rotina de interrupção comunicar ao processo boneco que a interrupção ocorreu
     
-evento_int_1:
+relogio_sonda:
     LOCK 0              ; LOCK para a rotina de interrupção comunicar ao processo sonda que a interrupção ocorreu
 
 relogio_energia:
@@ -158,10 +168,13 @@ relogio_nave:
 pausa:
     LOCK 0              ; LOCK para quando o jogo está no estado inativo
 
+sonda_disparada:
+    LOCK 0
+
 ; Tabela das rotinas de interrupção
 tab:
     WORD rot_int_0          ; rotina de atendimento da interrupção 0
-    WORD 0                  ; rotina de atendimento da interrupção 1
+    WORD rot_int_1                  ; rotina de atendimento da interrupção 1
     WORD rot_int_2          ; rotina de atendimento da interrupção 2
     WORD rot_int_3          ; rotina de atendimento da interrupção 3
 
@@ -176,8 +189,8 @@ inicializacoes:
     MOV  [APAGA_ECRÃ], R1               ; apaga todos os pixels já desenhados (o valor de R1 não é relevante)
     MOV   R1, 0                         ; cenário de fundo número 0
     MOV  [SELECIONA_CENARIO_FUNDO], R1  ; seleciona o cenário de fundo
-    MOV   R1, 3                         ; cenário de fundo número 0
-    MOV  [SELECIONA_CENARIO_SOBREPOSTO], R1 ; apaga cenário sobreposto
+    MOV   R1, 3                         ; cenário de fundo número 3
+    MOV  [SELECIONA_CENARIO_SOBREPOSTO], R1 ; seleciona cenário sobreposto
     MOV  R4, DISPLAYS                   ; endereço do periférico dos displays
     MOV  R1, 0100H                      ; Valor correspondente a 100 decimal no display
     MOV  [R4], R1                       ; Altera o valor no display
@@ -185,6 +198,7 @@ inicializacoes:
     MOV [ESTADO_JOGO], R1
 
     EI0                                 ; permite interrupções 0
+    EI1                                 ; permite interrupções 1
     EI2                                 ; permite interrupções 2
     EI3                                 ; permite interrupções 3
     EI                                  ; permite interrupções (geral)
@@ -194,23 +208,20 @@ inicializacoes:
     CALL energia
     CALL asteroide
     CALL nave
-
-desenha_sonda:              
-    MOV R0, DEF_SONDA               ; endereço da tabela que define a sonda
-    MOV R1, [LINHA_SONDA]           ; linha da posição da sonda
-    MOV R2, [COLUNA_SONDA]          ; coluna da posição da sonda
-    CALL desenha_boneco             ; desenha a sonda
+    CALL sonda
+    
 
 comando:
-; R6 - input
+; R6 - c xgrx
 
 comando_inicio: 
 
 ; redireciona para a ação correspondente ao input
 
     MOV  R6, [tecla_carregada] ; bloqueia neste LOCK até uma tecla ser carregada
-    CMP  R6, 3
-    JZ   comando_move_sonda         ; input = 3 -> Move a sonda
+    MOV  R1, 1
+    CMP  R6, R1
+    JZ   comando_dispara_sonda_meio ; input = 1 - > Dispara sonda meio
     MOV  R1, 0CH
     CMP  R6, R1
     JZ   comando_comeca_jogo        ; input = C -> Começa jogo
@@ -222,98 +233,66 @@ comando_inicio:
     JZ   comando_fim_jogo           ; input = E -> Termina jogo
     JMP  comando_inicio                
 
-comando_move_sonda: 
-    MOV R0, DEF_SONDA       ; Obtém o endereço da sonda
-    MOV R1, [LINHA_SONDA]   ; Obtém a sua posição (linha)
-    MOV R2, [COLUNA_SONDA]  ; Obtém a sua posição (coluna)
-    CALL apaga_boneco       ; Rotina para apagar o boneco
-    SUB R1, 1               ; Sobe a posição 1 linha
-    MOV [LINHA_SONDA], R1   ; Atualização da posição da sonda na memória
-    MOV [COLUNA_SONDA], R2
-    CALL desenha_boneco     ; Rotina para desenhar o boneco
-    JMP  comando_inicio
+comando_dispara_sonda_meio:
+    MOV [sonda_disparada], R0 
+    JMP comando_inicio
 
 comando_comeca_jogo:
-    MOV R3, [ESTADO_JOGO]
-    MOV R2, INICIO
-    CMP R3, R2
-    JLT comando_inicio
+    MOV R3, [ESTADO_JOGO]               ; obtém estado atual do jogo
+    MOV R2, INICIO                      ; obtém valor correspondente ao estado inicial
+    CMP R3, R2              
+    JLT comando_inicio                  ; se o jogo já estiver no estado inicial volta ao programa principal
     MOV   R1, 0                         ; cenário de fundo número 0
     MOV  [SELECIONA_CENARIO_FUNDO], R1  ; seleciona o cenário de fundo
-    MOV  [APAGA_CENARIO_SOBREPOSTO], R1  
+    MOV  [APAGA_CENARIO_SOBREPOSTO], R1 ; apaga cenário sobreposto
     MOV  R4, DISPLAYS                   ; endereço do periférico dos displays
     MOV  R1, 64H                        ; Valor correspondente a 100 decimal (energia máxima)
     MOV  [VALOR_DISPLAY], R1            ; Altera o valor na memória
     MOV  R1, 0100H                      ; Valor correspondente a 100 decimal no display
     MOV  [R4], R1                       ; Altera o valor no display
-    CALL comando_unpause_init
+    CALL comando_unpause_init           ; Altera o estado de jogo para jogável
     CMP R3, FIM
-    JNZ comando_inicio
+    JNZ comando_inicio                  ; Se não for um restart volta ao programa principal
 comando_comeca_jogo_restart:
-    MOV R1, 1
-    MOV [RESTART], R1
+    MOV R1, TRUE
+    MOV [RESTART], R1                   ; Se for um restart, altera a respetiva variável
     JMP  comando_inicio
 
+
 comando_altera_estado:
-    MOV R1, [ESTADO_JOGO]
-    CMP R1, 1
-    JZ comando_altera_estado_inativo
-    JMP comando_altera_estado_ativo
+    MOV R1, [ESTADO_JOGO]               ; Obtém estado atual do jogo
+    CMP R1, 1 
+    JZ comando_altera_estado_inativo    ; Se estiver em pausa, vai para o comando respetivo
+    JMP comando_altera_estado_ativo     ; Se estiver jogável, vai para o comando respetivo
 comando_altera_estado_inativo:
-    MOV R1, [ESTADO_JOGO]
-    MOV R2, JOGAVEL
+    MOV R1, [ESTADO_JOGO]               ; Obtém estado atual do jogo
+    MOV R2, JOGAVEL                     ; Obtém valor correspondente ao estado inicial
     CMP R1, R2
-    JNZ comando_inicio
-    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1
-    CALL comando_pause_init
-    JMP comando_inicio
+    JNZ comando_inicio                  ; Se não estiver no estado jogável, volta para o progama principal
+    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1 ; Seleciona cenário correspondente ao estado de pausa
+    CALL comando_pause_init             ; Chama rotina de pausa
+    JMP comando_inicio 
 comando_altera_estado_ativo: 
-    MOV R1, [ESTADO_JOGO]
-    MOV R2, PAUSA
+    MOV R1, [ESTADO_JOGO]               ; Obtém estado atual do jogo
+    MOV R2, PAUSA                       ; Obtém valor correspondente ao estado pausa
     CMP R1, R2
-    JNZ comando_inicio
-    MOV  [APAGA_CENARIO_SOBREPOSTO], R1  
-    CALL comando_unpause_init
+    JNZ comando_inicio                  ; Se não estiver no estado pausa, volta para o progama principal
+    MOV  [APAGA_CENARIO_SOBREPOSTO], R1 ; Apaga cenário correspondente ao estado de pausa
+    CALL comando_unpause_init           ; Chama rotina de sair de pausa
     JMP comando_inicio
 
-comando_pause_init:
-    PUSH R1 
-    MOV R1, 0               ; cenário de fundo 1
-
-comando_pause_pause:
-    DI
-    MOV [ESTADO_JOGO], R1
-
-comando_pause_ret:
-    POP R1 
-    RET 
-
-comando_unpause_init:
-    PUSH R1 
-    MOV R1, 1               ; cenário de fundo 0
-comando_unpause_unpause:
-    EI
-    MOV [ESTADO_JOGO], R1
-    MOV [pausa], R1
-    
-comando_unpause_ret:
-    POP R1 
-    RET 
 
 comando_fim_jogo:
-    MOV R1, [ESTADO_JOGO]
-    MOV R2, INICIO
+    MOV R1, [ESTADO_JOGO]                   ; Obtém estado atual do jogo
+    MOV R2, INICIO                          ; Obtém valor correspondente ao estado de inicio
     CMP R1, R2
-    JZ comando_inicio
-    CALL comando_pause_init
+    JZ comando_inicio                       ; Se estiver no estado inicial, volta para o progama principal
+    CALL comando_pause_init                 ; Chama rotina de pausa
     MOV R1, 2
-    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1
+    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1  ; Seleciona cenário de fim de jogo
     MOV R1, FIM
-    MOV [ESTADO_JOGO], R1
+    MOV [ESTADO_JOGO], R1                   ; Coloca o estado do jogo com o valor correspondente ao fim
     JMP comando_inicio
-
-
-
 ; **********************************************************************
 ; Processo
 ;
@@ -388,8 +367,6 @@ PROCESS SP_init_energia ; indicação de que a rotina que se segue é um process
                         ;R5 - resultado
 
 energia:
-
-energia_pausa:
     MOV R0, [relogio_energia] ; lê o LOCK e bloqueia até a interrupção escrever nele
 
     MOV R1, [ESTADO_JOGO] ; Obtêm o estado atual do jogo
@@ -400,28 +377,7 @@ energia_pausa:
 energia_init:
     MOV R1, [VALOR_DISPLAY] ; Obtém valor atual da energia
     MOV R2, 3               ; Valor de decremento da energia (3%)
-    SUB R1, R2              ; Decremento da energia
-    MOV [VALOR_DISPLAY], R1 ; Atualiza valor da energia em memória
-    MOV R2, 1000            ; Fator para converter um número de 3 dígitos
-    MOV R3, 10              ; Valor para obter diferentes potências de 10
-    MOV R5, 0               ; Inicialização a 0
-
-converte_energia:
-    MOD R1, R2              ; número: o valor a converter nesta iteração
-                            ; fator: uma potência de 10 (para obter os dígitos)
-
-    DIV R2, R3              ; prepara o próximo fator de divisão
-    CMP R2, 0               ; se fator = 0, termina
-    JZ altera_energia
-    MOV R4, R1              ; Preserva o número
-    DIV R4, R2              ; Obtém um dígito do valor decimal (0 a 9)
-    SHL R5, 4               ; desloca, para dar espaço ao novo dígito
-    OR R5, R4               ; vai compondo o resultado
-    JMP converte_energia
-
-altera_energia:
-    MOV  R4, DISPLAYS           ; endereço do periférico dos displays
-    MOV  [R4], R5              ; Altera o valor no display
+    CALL altera_energia_inicio
     JMP energia
 
 ; **********************************************************************
@@ -438,7 +394,6 @@ PROCESS SP_init_asteroide  ; indicação de que a rotina que se segue é um proc
 asteroide:
     MOV R1, 0
     MOV [RESTART], R1
-
 asteroide_parametros:
     MOV R5, [TEC_COL]
     SHR R5, 4
@@ -459,9 +414,9 @@ asteroide_mineravel:
 asteroide_spawn:
     MUL R5, R8                       ; cada endereço da tabela tem 2 WORDS (4 bytes)
     MOV R9, SPAWN_ASTEROIDE
-    MOV R2, [R9 + R5]  ; coluna de spawn do asteroide
+    MOV R2, [R9 + R5]               ; coluna de spawn do asteroide
     ADD R5, 2                       ; o incremento do asteroide encontra-se na segunda WORD do endereço
-    MOV R7, [R9 + R5]  ; incremento
+    MOV R7, [R9 + R5]               ; incremento
     MOV R1, 0                       ; linha de spawn do asteroide
 
 asteroide_ciclo:
@@ -473,18 +428,27 @@ asteroide_ciclo:
     CMP R10, JOGAVEL             ; Se estiver ativo, salta para o processo
     JZ asteroide_movimento
     MOV R11, [pausa]       ; Se estiver inativo, bloqueia até que volte a estar ativo
+
 asteroide_movimento:
     CALL apaga_boneco               ; Rotina para apagar o boneco
-    MOV R11, [RESTART]
-    CMP R11, 1
-    JZ asteroide
-    ADD R1, 1                       ; Incremento da linha
-    ADD R2, R7                      ; incremento da coluna
-    MOV [LINHA_ASTEROIDE], R1       ; Atualização da posição do asteróide na memória
-    MOV [COLUNA_ASTEROIDE], R2
-    ;CALL testa_limites
+    MOV R11, [RESTART]              ; Obtem o estado da variável Restart
+    CMP R11, TRUE
+    JZ asteroide                    ; Se for TRUE reincia o processo
+    ADD  R1, 1                      ; Incremento da linha
+    ADD  R2, R7                     ; incremento da coluna
+    MOV  [LINHA_ASTEROIDE], R1      ; Atualização da posição do asteróide na memória
+    MOV  [COLUNA_ASTEROIDE], R2
+    CALL testa_limites
+    MOV  R5, 0
+    CMP  R8, R5
+    JZ   asteroide_parametros
+    INC  R5
+    CMP  R8, R5
+    JZ   asteroide_fim_jogo
     JMP  asteroide_ciclo            ; este processo é um ciclo infinito. Não é bloqueante devido ao LOCK
     
+asteroide_fim_jogo:
+    JMP comando_fim_jogo
 
 ; **********************************************************************
 ; Processo
@@ -508,9 +472,10 @@ nave_pausa:
                                     ; Quando bloqueia, passa o controlo para outro processo
                                     ; Como não há valor a transmitir, o registo pode ser um qualquer
     MOV R10, [ESTADO_JOGO] ; Obtêm o estado atual do jogo
-    CMP R10, 1             ; Se estiver ativo, salta para o processo
+    CMP R10, JOGAVEL             ; Se estiver ativo, salta para o processo
     JZ nave_ciclo
     MOV R11, [pausa]       ; Se estiver inativo, bloqueia até que volte a estar ativo
+
 nave_ciclo:
     CMP R4, 1
     JZ nave_sprite_2
@@ -521,7 +486,7 @@ nave_sprite_1:
     MOV R2, 32                      ; coluna da posição do painel
     CALL desenha_boneco
     INC R4
-    JMP nave_pausa
+    JMP nave_ciclo
 
 nave_sprite_2:
     MOV R0, DEF_LUZES_2             ; endereço da tabela que define o segundo sprite das luzes
@@ -530,6 +495,57 @@ nave_sprite_2:
     CALL desenha_boneco
     SUB R4, 1
     JMP nave_pausa
+
+; ********************************************************************************
+; Processo
+;
+; SONDA - Processo que desenha as sondas e as move na direcao correta consoante 
+;         a tecla premida com temporizacao marcada pela interrupcao 0
+;
+; ********************************************************************************]
+
+PROCESS SP_init_sonda  ; indicação de que a rotina que se segue é um processo,
+                        ; com indicação do valor para inicializar o SP
+
+sonda:   
+    MOV R1, 0
+    MOV [RESTART], R1
+    MOV R0, [sonda_disparada]
+
+    
+    MOV R0, DEF_SONDA               ; endereço da tabela que define a sonda
+    MOV R1, [LINHA_SONDA]           ; linha da posição da sonda
+    MOV R2, [COLUNA_SONDA]          ; coluna da posição da sonda
+    MOV R4, 14                      ; linha da posição máxima
+
+
+ciclo_sonda:
+    CALL    desenha_boneco     ; desenha a sonda na sua posição atual
+    MOV R3, [relogio_sonda]     ; lê o LOCK e bloqueia até a interrupção escrever nele
+                                    ; Quando bloqueia, passa o controlo para outro processo
+                                    ; Como não há valor a transmitir, o registo pode ser um qualquer
+    MOV R10, [ESTADO_JOGO] ; Obtêm o estado atual do jogo
+    CMP R10, JOGAVEL             ; Se estiver ativo, salta para o processo
+    JZ sonda_movimento
+    MOV R11, [pausa]       ; Se estiver inativo, bloqueia até que volte a estar ativo
+sonda_movimento:
+    CALL    apaga_boneco        ; apaga a sonda da sua posição corrente
+    MOV R11, [RESTART]
+    CMP R11, 1
+    JZ sonda_destroi
+    SUB R1, 1                 ; para desenhar sonda na linha seguinte
+    CMP R1, R4                 ; verifica máximo movimentos
+    JZ sonda_destroi
+    MOV [LINHA_SONDA], R1   ; Atualização da posição da sonda na memória
+    JMP ciclo_sonda             ; esta "rotina" nunca retorna porque nunca termina
+                                ; Se se quisesse terminar o processo, era deixar o processo chegar a um RET
+sonda_destroi:
+    CALL apaga_boneco
+    MOV R1, LINHA_INIC_SONDA
+    MOV R2, COLUNA_INIC_SONDA
+    MOV [LINHA_SONDA], R1 
+    MOV [COLUNA_SONDA], R2
+    JMP sonda
 
 ; ***********************************************************************
 ; * ROTINAS
@@ -708,6 +724,135 @@ apaga_boneco_ret:
     POP R0
     RET
 
+; #######################################################################
+; TESTA_LIMITES -   verifica se o asteroide embate com alguma coisa ou sai 
+;               do mapa 
+;
+; Argumentos:   
+;               R1 - linha do pixel posicao do asteroide
+;               R2 - coluna do pixel posicao do asteroide
+; #######################################################################
+
+testa_limites:
+
+testa_limites_inicio:
+    PUSH R0
+    PUSH R1
+    PUSH R2
+
+testa_limites_ecra:
+    MOV R0, LINHA_MAX
+    CMP R1, R0
+    JLE testa_limites_nave
+
+testa_limites_respawn:
+    MOV R8, 0
+    JMP testa_limites_ret
+
+testa_limites_nave:
+    ADD R1, ALTURA_ASTEROIDE
+    MOV R0, 27
+    CMP R1, R0
+    JLT testa_limites_ret
+    MOV R0, 39
+    CMP R2, R0
+    JGT testa_limites_ret
+    MOV R0, 25
+    ADD R2, LARGURA_ASTEROIDE
+    CMP R2, R0
+    JLT testa_limites_ret
+
+testa_limites_fim_jogo:
+    MOV R8, 1
+
+testa_limites_ret:
+    POP R2
+    POP R1
+    POP R0
+    RET
+
+; #######################################################################
+; COMANDO_PAUSE - coloca o jogo no estado de pausa
+;
+; Argumentos:   
+;             R1 - estado de pausa
+; #######################################################################
+
+comando_pause_init:
+    PUSH R1 
+    MOV R1, PAUSA               ; Obtém valor correspondente a estado de pausa
+
+comando_pause_pause:
+    DI                          ; Desativa interrupções
+    MOV [ESTADO_JOGO], R1       ; Coloca o jogo em estado de pausa
+
+comando_pause_ret:
+    POP R1 
+    RET 
+
+; #######################################################################
+; COMANDO_UNPAUSE - tira do jogo no estado de pausa
+;
+; Argumentos:   
+;             R1 - estado jogável
+; #######################################################################
+
+comando_unpause_init:
+    PUSH R1 
+    MOV R1, JOGAVEL              
+comando_unpause_unpause:
+    EI                      ; Ativa interrupções
+    MOV [ESTADO_JOGO], R1   ; Retira o jogo de estado de pausa
+    MOV [pausa], R1         ; Desbloqueia os processos parados durante o estado de pausa
+    
+comando_unpause_ret:
+    POP R1 
+    RET 
+
+; #######################################################################
+; ALTERA_ENERGIA - altera a energia da nave, alterando também o display
+;
+; Argumentos:   
+;             R1 - Valor do display em memória
+;             R2 - Valor a decrementar
+; #######################################################################
+altera_energia_inicio:
+    PUSH R1
+    PUSH R2 
+    PUSH R3 
+    PUSH R4
+    PUSH R5
+
+    SUB R1, R2              ; Decremento da energia
+    MOV [VALOR_DISPLAY], R1 ; Atualiza valor da energia em memória
+    MOV R2, 1000            ; Fator para converter um número de 3 dígitos
+    MOV R3, 10              ; Valor para obter diferentes potências de 10
+    MOV R5, 0               ; Inicialização a 0
+
+altera_energia_converte:
+    MOD R1, R2              ; número: o valor a converter nesta iteração
+                            ; fator: uma potência de 10 (para obter os dígitos)
+
+    DIV R2, R3              ; prepara o próximo fator de divisão
+    CMP R2, 0               ; se fator = 0, termina
+    JZ altera_energia_memoria
+    MOV R4, R1              ; Preserva o número
+    DIV R4, R2              ; Obtém um dígito do valor decimal (0 a 9)
+    SHL R5, 4               ; desloca, para dar espaço ao novo dígito
+    OR R5, R4               ; vai compondo o resultado
+    JMP altera_energia_converte
+
+altera_energia_memoria:
+    MOV  R4, DISPLAYS           ; endereço do periférico dos displays
+    MOV  [R4], R5              ; Altera o valor no display
+
+altera_energia_ret:
+    POP R5
+    POP R4
+    POP R3
+    POP R2 
+    POP R1 
+    RET 
 ; ***********************************************************************
 ; * INTERRUPÇÕES
 ; ***********************************************************************   
@@ -719,6 +864,15 @@ apaga_boneco_ret:
 
 rot_int_0:
     MOV [relogio_asteroide], R0 ; desbloqueia processo boneco (qualquer registo serve) 
+    RFE
+
+; **********************************************************************
+; ROT_INT_1 -   Rotina de atendimento da interrupção 1
+;           Faz simplesmente uma escrita no LOCK que o processo asteroide lê
+; **********************************************************************
+
+rot_int_1:
+    MOV [relogio_sonda], R0 ; desbloqueia processo sonda (qualquer registo serve) 
     RFE
 
 ; **********************************************************************
