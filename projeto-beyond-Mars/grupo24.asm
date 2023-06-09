@@ -230,8 +230,10 @@ comando_inicio:
     JZ   comando_altera_estado      ; input = D -> Pausa/Tira pausa
     MOV  R1, 0EH
     CMP  R6, R1
-    JZ   comando_fim_jogo           ; input = E -> Termina jogo
-    JMP  comando_inicio                
+    JNZ  comando_inicio_reset           ; input = E -> Termina jogo
+    CALL comando_fim_jogo_inicio
+comando_inicio_reset:
+    JMP  comando_inicio               
 
 comando_comeca_jogo:
     MOV R3, [ESTADO_JOGO]               ; obtém estado atual do jogo
@@ -278,7 +280,10 @@ comando_altera_estado_ativo:
     JMP comando_inicio
 
 
-comando_fim_jogo:
+comando_fim_jogo_inicio:
+    PUSH R1
+    PUSH R2 
+comando_fim_jogo_altera:
     MOV R1, [ESTADO_JOGO]                   ; Obtém estado atual do jogo
     MOV R2, INICIO                          ; Obtém valor correspondente ao estado de inicio
     CMP R1, R2
@@ -288,7 +293,10 @@ comando_fim_jogo:
     MOV [SELECIONA_CENARIO_SOBREPOSTO], R1  ; Seleciona cenário de fim de jogo
     MOV R1, FIM
     MOV [ESTADO_JOGO], R1                   ; Coloca o estado do jogo com o valor correspondente ao fim
-    JMP comando_inicio
+comando_fim_jogo_ret:
+    POP R2 
+    POP R1 
+    RET
 
 ; **********************************************************************
 ; Processo
@@ -453,7 +461,8 @@ asteroide_colisao:
     JMP asteroide_parametros
     
 asteroide_fim_jogo:
-    JMP comando_fim_jogo
+    CALL comando_fim_jogo_inicio
+    JMP asteroide_ciclo
 
 ; **********************************************************************
 ; Processo
@@ -478,8 +487,9 @@ nave_ciclo:
                                     ; Como não há valor a transmitir, o registo pode ser um qualquer
     MOV R10, [ESTADO_JOGO] ; Obtêm o estado atual do jogo
     CMP R10, JOGAVEL             ; Se estiver ativo, salta para o processo
-    JZ nave_ciclo
+    JZ nave_anim
     MOV R11, [pausa]       ; Se estiver inativo, bloqueia até que volte a estar ativo
+nave_anim:
     CMP R4, 1
     JZ nave_sprite_2
 

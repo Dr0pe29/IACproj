@@ -230,7 +230,9 @@ comando_inicio:
     JZ   comando_altera_estado      ; input = D -> Pausa/Tira pausa
     MOV  R1, 0EH
     CMP  R6, R1
-    JZ   comando_fim_jogo           ; input = E -> Termina jogo
+    JNZ  comando_inicio_reset           ; input = E -> Termina jogo
+    CALL comando_fim_jogo_inicio
+comando_inicio_reset:
     JMP  comando_inicio                
 
 comando_dispara_sonda_meio:
@@ -254,7 +256,7 @@ comando_comeca_jogo:
     CMP R3, FIM
     JNZ comando_inicio                  ; Se não for um restart volta ao programa principal
 comando_comeca_jogo_restart:
-    MOV R1, TRUE
+    MOV R1, 1
     MOV [RESTART], R1                   ; Se for um restart, altera a respetiva variável
     JMP  comando_inicio
 
@@ -282,7 +284,10 @@ comando_altera_estado_ativo:
     JMP comando_inicio
 
 
-comando_fim_jogo:
+comando_fim_jogo_inicio:
+    PUSH R1
+    PUSH R2 
+comando_fim_jogo_altera:
     MOV R1, [ESTADO_JOGO]                   ; Obtém estado atual do jogo
     MOV R2, INICIO                          ; Obtém valor correspondente ao estado de inicio
     CMP R1, R2
@@ -292,7 +297,10 @@ comando_fim_jogo:
     MOV [SELECIONA_CENARIO_SOBREPOSTO], R1  ; Seleciona cenário de fim de jogo
     MOV R1, FIM
     MOV [ESTADO_JOGO], R1                   ; Coloca o estado do jogo com o valor correspondente ao fim
-    JMP comando_inicio
+comando_fim_jogo_ret:
+    POP R2 
+    POP R1 
+    RET
 ; **********************************************************************
 ; Processo
 ;
@@ -448,7 +456,8 @@ asteroide_movimento:
     JMP  asteroide_ciclo            ; este processo é um ciclo infinito. Não é bloqueante devido ao LOCK
     
 asteroide_fim_jogo:
-    JMP comando_fim_jogo
+    CALL comando_fim_jogo_inicio
+    JMP asteroide_ciclo
 
 ; **********************************************************************
 ; Processo
