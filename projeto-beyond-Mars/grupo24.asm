@@ -816,6 +816,7 @@ testa_limites_ret:
     POP R1
     POP R0
     RET
+
     
 ; #######################################################################
 ; COMANDO_PAUSE - coloca o jogo no estado de pausa
