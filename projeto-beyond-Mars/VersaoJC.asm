@@ -367,7 +367,7 @@ asteroide_movimento:
     ADD  R2, R7                     ; incremento da coluna
     MOV  [LINHA_ASTEROIDE], R1      ; Atualização da posição do asteróide na memória
     MOV  [COLUNA_ASTEROIDE], R2
-    CALL testa_limites_A
+    CALL testa_limites
     MOV  R5, 0
     CMP  R8, R5
     JZ   asteroide_parametros
@@ -664,7 +664,7 @@ apaga_boneco_ret:
     RET
 
 ; #######################################################################
-; TESTA_LIMITES_A -   verifica se o asteroide embate com alguma coisa ou sai 
+; TESTA_LIMITES -   verifica se o asteroide embate com alguma coisa ou sai 
 ;               do mapa 
 ;
 ; Argumentos:   
@@ -672,9 +672,9 @@ apaga_boneco_ret:
 ;               R2 - coluna do pixel posicao do asteroide
 ; #######################################################################
 
-testa_limites_A:
+testa_limites:
 
-testa_limites_A_inicio:
+testa_limites_inicio:
     PUSH R0
     PUSH R1
     PUSH R2
@@ -683,52 +683,52 @@ testa_limites_A_inicio:
     MOV  R3, R1
     MOV  R4, R2
 
-testa_limites_A_ecra:
+testa_limites_ecra:
     MOV R0, LINHA_MAX
     CMP R1, R0
-    JLE testa_limites_A_nave
+    JLE testa_limites_nave
 
-testa_limites_A_respawn:
+testa_limites_respawn:
     MOV R8, 0
-    JMP testa_limites_A_ret
+    JMP testa_limites_ret
 
-testa_limites_A_nave:
+testa_limites_nave:
     ADD R1, ALTURA_ASTEROIDE
     MOV R0, 27
     CMP R1, R0
-    JLT testa_limites_A_sonda
+    JLT testa_limites_sonda
     MOV R0, 39
     CMP R2, R0
-    JGT testa_limites_A_sonda
+    JGT testa_limites_sonda
     MOV R0, 25
     ADD R2, LARGURA_ASTEROIDE
     CMP R2, R0
-    JLT testa_limites_A_sonda
+    JLT testa_limites_sonda
 
-testa_limites_A_fim_jogo:
+testa_limites_fim_jogo:
     MOV R8, 1
-    JMP testa_limites_A_ret
+    JMP testa_limites_ret
 
-testa_limites_A_sonda:
+testa_limites_sonda:
     MOV R1, R3
     MOV R2, R4
     MOV R0, [LINHA_SONDA]
     CMP R1, R0
-    JGT testa_limites_A_ret
+    JGT testa_limites_ret
     ADD R1, ALTURA_ASTEROIDE
     CMP R1, R0
-    JLT testa_limites_A_ret
+    JLT testa_limites_ret
     MOV R0, [COLUNA_SONDA]
     CMP R2, R0
-    JGT testa_limites_A_ret
+    JGT testa_limites_ret
     ADD R2, LARGURA_ASTEROIDE
     CMP R2, R0
-    JLT testa_limites_A_ret
+    JLT testa_limites_ret
 
-testa_limites_A_colisao:
+testa_limites_colisao:
     MOV R8, 2
 
-testa_limites_A_ret:
+testa_limites_ret:
     POP R4
     POP R3
     POP R2
