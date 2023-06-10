@@ -32,6 +32,11 @@ REPRODUZ_SOM                EQU COMANDOS + 5AH      ; endereço do comando para 
 ALTURA_ASTEROIDE            EQU 4          ; a altura é 5 mas para chegar ao ultimo pixel apenas se soma 4
 LARGURA_ASTEROIDE           EQU 4          ; a largura é 5 mas para chegar ao ultimo pixel apenas se soma 4
 LINHA_MAX                   EQU 31         ; ultima linha do ecra  
+LINHA_MAX_SONDA             EQU 14                  ; ultima linha que a sonda pode atingir no seu percurso
+
+TAMANHO_PILHA               EQU 100H                ; tamanho da pilha
+N_ASTEROIDES                EQU 4                   ; numero de asteroides
+N_SONDAS                    EQU 3                   ; numero de sondas
 
 PAUSA           EQU 0 ; ESTADO DO JOGO DE PAUSA
 JOGAVEL         EQU 1 ; ESTADO DO JOGO JOGÁVEL
@@ -64,13 +69,29 @@ DEF_ASTEROIDE_MINERAVEL:    ; tabela que define o asteroide mineravel
     WORD		VERDE, VERDE, VERDE, VERDE, VERDE
     WORD		0, VERDE, VERDE, VERDE, 0
 
+DEF_ASTEROIDE_MINERAVEL_EXPLOSAO:    ; tabela que define o asteroide mineravel
+    WORD        5, 5        ; largura e altura do asteroide
+    WORD        ROSA, ROSA, ROSA, ROSA, ROSA
+    WORD        ROSA, 0, 0, 0, ROSA
+    WORD        ROSA, 0, ROSA, 0, ROSA
+    WORD        ROSA, 0, 0, 0, ROSA
+    WORD        ROSA, ROSA, ROSA, ROSA, ROSA
+
 DEF_ASTEROIDE_NAO_MINERAVEL:    ; tabela que define o asteroide nao mineravel
 	WORD		5, 5        ; largura e altura do asteroide
 	WORD		VERMELHO, 0, VERMELHO, 0, VERMELHO
-    WORD		0, VERMELHO, 0, VERMELHO, 0
+    WORD		0, VERMELHO, VERMELHO, VERMELHO, 0
+    WORD		VERMELHO, VERMELHO, 0, VERMELHO, VERMELHO
+    WORD		0, VERMELHO, VERMELHO, VERMELHO, 0
     WORD		VERMELHO, 0, VERMELHO, 0, VERMELHO
-    WORD		0, VERMELHO, 0, VERMELHO, 0
-    WORD		VERMELHO, 0, VERMELHO, 0, VERMELHO
+
+DEF_ASTEROIDE_NAO_MINERAVEL_EXPLOSAO:    ; tabela que define o asteroide nao mineravel
+    WORD        5, 5        ; largura e altura do asteroide
+    WORD        0, CIANO, 0, CIANO, 0
+    WORD        CIANO, 0, CIANO, 0, CIANO
+    WORD        0, CIANO, 0, CIANO, 0
+    WORD        CIANO, 0, CIANO, 0, CIANO
+    WORD        0, CIANO, 0, CIANO, 0
 
 DEF_SONDA:					; tabela que define a sonda
 	WORD		1, 1        ; largura e altura da sonda
@@ -110,22 +131,42 @@ SPAWN_SONDA:
     WORD 38, 1
 
 LINHA_ASTEROIDE:
-    WORD 0                  ; valor da linha do pixel-posição do asteroide
+    WORD 0                  ; valor da linha do pixel-posição do asteroide 1
+    WORD 0                  ; valor da linha do pixel-posição do asteroide 2
+    WORD 0                  ; valor da linha do pixel-posição do asteroide 3
+    WORD 0                  ; valor da linha do pixel-posição do asteroide 4
 
-COLUNA_ASTEROIDE:           ; valor da coluna do pixel-posição do asteroide
-    WORD 0    
+COLUNA_ASTEROIDE:
+    WORD 0                  ; valor da coluna do pixel-posição do asteroide 1
+    WORD 0                  ; valor da coluna do pixel-posição do asteroide 2
+    WORD 0                  ; valor da coluna do pixel-posição do asteroide 3
+    WORD 0                  ; valor da coluna do pixel-posição do asteroide 4
+  
 
 LINHA_SONDA:                ; valor da linha do pixel-posição da sonda
-    WORD 26
+    WORD 0
+    WORD 0
+    WORD 0
 
 COLUNA_SONDA:               ; valor da linha do pixel-posição da sonda
-    WORD -1 
+    WORD 0
+    WORD 0
+    WORD 0 
+
 
 ESTADO_JOGO:
     WORD 0                  ; 0 = inativo, 1 = ativo
 
-RESTART:
-    WORD 0                  ; valor que indica se é necessário resetar as rotinas 
+RESTART_ASTEROIDES:
+    WORD 0
+    WORD 0
+    WORD 0
+    WORD 0
+
+RESTART_SONDAS:
+    WORD 0
+    WORD 0
+    WORD 0
 
 ; **********************************************************************
 ; * Código
@@ -135,23 +176,23 @@ PLACE 1000H
 
 ; inicialização da stack
 
-STACK 100H
+STACK TAMANHO_PILHA
 SP_init_prog_princ:
 
-STACK 100H
+STACK TAMANHO_PILHA
 SP_init_teclado:
 
-STACK 100H
+STACK TAMANHO_PILHA
 SP_init_energia:
 
-STACK 100H
+STACK TAMANHO_PILHA * N_ASTEROIDES
 SP_init_asteroide:
 
-STACK 100H
+STACK TAMANHO_PILHA
 SP_init_nave:
 
-STACK 100H          
-SP_init_sonda:   
+STACK TAMANHO_PILHA * N_SONDAS         
+SP_init_sonda:      
 
 tecla_carregada:
     LOCK 0              ; LOCK para o teclado comunicar aos restantes processos que tecla detetou
@@ -169,7 +210,9 @@ relogio_nave:
 	LOCK 0				; LOCK para a rotina de interrupção comunicar ao processo nave que a interrupção ocorreu
 
 colisao:                ; indica se ha colisao entre asteroide e sonda
-    WORD 0
+    WORD 0              ; sonda 1 (esquerda)
+    WORD 0              ; sonda 2 (centro)
+    WORD 0              ; sonda 3 (direita)
 
 pausa:
     LOCK 0              ; LOCK para quando o jogo está no estado inativo
@@ -206,16 +249,25 @@ inicializacoes:
     EI3                                 ; permite interrupções 3
 	EI					                ; permite interrupções (geral)
 
-    ; criacao dos processos
+init_processos:
     CALL teclado
     CALL energia
-    CALL asteroide
     CALL nave
-    CALL sonda
-    
+    MOV  R11, N_ASTEROIDES
 
+loop_asteroides:
+    SUB R11, 1
+    CALL asteroide
+    JNZ loop_asteroides
+    MOV R11, N_SONDAS
+
+loop_sondas:
+    SUB R11, 1
+    CALL sonda
+    JNZ loop_sondas
+    
 comando:
-; R6 - c xgrx
+; R6 - input
 
 comando_inicio: 
 
@@ -232,7 +284,10 @@ comando_inicio:
     CMP  R6, R1
     JNZ  comando_inicio_reset           ; input = E -> Termina jogo
     CALL comando_fim_jogo_inicio
+
 comando_inicio_reset:
+    MOV R0, 5                           ; reproduzir som de stop
+    MOV [REPRODUZ_SOM], R0
     JMP  comando_inicio               
 
 comando_comeca_jogo:
@@ -250,32 +305,55 @@ comando_comeca_jogo:
     MOV  [R4], R1                       ; Altera o valor no display
     CALL comando_unpause_init           ; Altera o estado de jogo para jogável
     CMP R3, FIM
+    MOV R0, 7                           ; reproduzir som de start
+    MOV [REPRODUZ_SOM], R0 
     JNZ comando_inicio                  ; Se não for um restart volta ao programa principal
+
 comando_comeca_jogo_restart:
     MOV R1, TRUE
-    MOV [RESTART], R1                   ; Se for um restart, altera a respetiva variável
-    JMP  comando_inicio
+    MOV R6, RESTART_ASTEROIDES
+    MOV R3, 6
 
+comando_comeca_jogo_restart_asteroides:
+    MOV [R6 + R3], R1
+    SUB R3, 2
+    CMP R3, 0
+    JGE comando_comeca_jogo_restart_asteroides
+    MOV R6, RESTART_SONDAS
+    MOV R3, 4
+
+comando_comeca_jogo_restart_sondas:
+    MOV [R6 + R3], R1
+    SUB R3, 2
+    CMP R3, 0
+    JGE comando_comeca_jogo_restart_sondas
+    JMP  comando_inicio
 
 comando_altera_estado:
     MOV R1, [ESTADO_JOGO]               ; Obtém estado atual do jogo
     CMP R1, 1 
     JZ comando_altera_estado_inativo    ; Se estiver em pausa, vai para o comando respetivo
     JMP comando_altera_estado_ativo     ; Se estiver jogável, vai para o comando respetivo
+
 comando_altera_estado_inativo:
     MOV R1, [ESTADO_JOGO]               ; Obtém estado atual do jogo
     MOV R2, JOGAVEL                     ; Obtém valor correspondente ao estado inicial
     CMP R1, R2
     JNZ comando_inicio                  ; Se não estiver no estado jogável, volta para o progama principal
     MOV [SELECIONA_CENARIO_SOBREPOSTO], R1 ; Seleciona cenário correspondente ao estado de pausa
+    MOV R0, 6                           ; reproduzir som de pause
+    MOV [REPRODUZ_SOM], R0 
     CALL comando_pause_init             ; Chama rotina de pausa
     JMP comando_inicio 
+
 comando_altera_estado_ativo: 
     MOV R1, [ESTADO_JOGO]               ; Obtém estado atual do jogo
     MOV R2, PAUSA                       ; Obtém valor correspondente ao estado pausa
     CMP R1, R2
     JNZ comando_inicio                  ; Se não estiver no estado pausa, volta para o progama principal
     MOV  [APAGA_CENARIO_SOBREPOSTO], R1 ; Apaga cenário correspondente ao estado de pausa
+    MOV R0, 7                           ; reproduzir som de start
+    MOV [REPRODUZ_SOM], R0
     CALL comando_unpause_init           ; Chama rotina de sair de pausa
     JMP comando_inicio
 
@@ -283,16 +361,18 @@ comando_altera_estado_ativo:
 comando_fim_jogo_inicio:
     PUSH R1
     PUSH R2 
+
 comando_fim_jogo_altera:
     MOV R1, [ESTADO_JOGO]                   ; Obtém estado atual do jogo
     MOV R2, INICIO                          ; Obtém valor correspondente ao estado de inicio
     CMP R1, R2
     JZ comando_inicio                       ; Se estiver no estado inicial, volta para o progama principal
     CALL comando_pause_init                 ; Chama rotina de pausa
-    MOV R1, 2
+    MOV R1, 4
     MOV [SELECIONA_CENARIO_SOBREPOSTO], R1  ; Seleciona cenário de fim de jogo
     MOV R1, FIM
     MOV [ESTADO_JOGO], R1                   ; Coloca o estado do jogo com o valor correspondente ao fim
+
 comando_fim_jogo_ret:
     POP R2 
     POP R1 
@@ -383,6 +463,20 @@ energia_init:
     MOV R1, [VALOR_DISPLAY] ; Obtém valor atual da energia
     MOV R2, 3               ; Valor de decremento da energia (3%)
     CALL altera_energia_inicio
+    MOV R1, [VALOR_DISPLAY] ; Obtém valor atual da energia
+    CMP R1, 0 
+    JLE energia_fim_jogo    ; Se for 0, dá game over
+    JMP energia
+
+energia_fim_jogo:
+    MOV R1, 0
+    MOV  R4, DISPLAYS               ; endereço do periférico dos displays
+    MOV  [R4], R1                   ; Altera o valor no display
+    CALL comando_fim_jogo_inicio    ; Altera o estado para fim
+    MOV R1, 2
+    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1 ; Seleciona o cenário de game over
+    MOV R0, 4                           ; reproduzir som game over 0 energia
+    MOV [REPRODUZ_SOM], R0
     JMP energia
 
 ; **********************************************************************
@@ -397,8 +491,18 @@ PROCESS SP_init_asteroide  ; indicação de que a rotina que se segue é um proc
                             ; com indicação do valor para inicializar o SP
 
 asteroide:
+
+asteroide_SP_init:
+    MOV R0, TAMANHO_PILHA
+    MUL R0, R11
+    SUB SP, R0
+    SHL R11, 1
+
+asteroide_inicio:
     MOV R1, 0
-    MOV [RESTART], R1
+    MOV R5, RESTART_ASTEROIDES
+    MOV [R5 + R11], R1
+
 asteroide_parametros:
     MOV R5, [TEC_COL]
     SHR R5, 4
@@ -432,17 +536,20 @@ asteroide_ciclo:
     MOV R10, [ESTADO_JOGO] ; Obtêm o estado atual do jogo
     CMP R10, JOGAVEL             ; Se estiver ativo, salta para o processo
     JZ asteroide_movimento
-    MOV R11, [pausa]       ; Se estiver inativo, bloqueia até que volte a estar ativo
+    MOV R9, [pausa]       ; Se estiver inativo, bloqueia até que volte a estar ativo
 
 asteroide_movimento:
-    CALL apaga_boneco               ; Rotina para apagar o boneco
-    MOV R11, [RESTART]              ; Obtem o estado da variável Restart
-    CMP R11, TRUE
-    JZ asteroide                    ; Se for TRUE reincia o processo
-    ADD  R1, 1                      ; Incremento da linha
-    ADD  R2, R7                     ; incremento da coluna
-    MOV  [LINHA_ASTEROIDE], R1      ; Atualização da posição do asteróide na memória
-    MOV  [COLUNA_ASTEROIDE], R2
+    CALL apaga_boneco                     ; Rotina para apagar o boneco
+    MOV R5, RESTART_ASTEROIDES
+    MOV R9, [R5 + R11]                     ; Obtem o estado da variável Restart
+    CMP R9, TRUE
+    JZ asteroide_inicio                   ; Se for TRUE reincia o processo
+    ADD  R1, 1                            ; Incremento da linha
+    ADD  R2, R7                           ; incremento da coluna
+    MOV R9, LINHA_ASTEROIDE
+    MOV  [R9 + R11], R1      ; Atualização da posição do asteróide na memória
+    MOV R9, COLUNA_ASTEROIDE
+    MOV  [R9 + R11], R2
     CALL testa_limites
     MOV  R5, 0
     CMP  R8, R5
@@ -456,13 +563,68 @@ asteroide_movimento:
     JMP  asteroide_ciclo            ; este processo é um ciclo infinito. Não é bloqueante devido ao LOCK
 
 asteroide_colisao:
+
+asteroide_colisao_meio:
     MOV R8, 1
-    MOV [colisao], R8
+    MOV R3, 30
+    CMP R2, R3
+    JNZ asteroide_colisao_esquerda
+    MOV R9, colisao
+    MOV [R9 + 2], R8
+    CALL apaga_boneco
+    MOV R10, DEF_ASTEROIDE_NAO_MINERAVEL        ; Obtém endereço da tabela correspondente ao asteroide nao mineravel
+    CMP R0, R10
+    JZ asteroide_colisao_nao_mineravel          ; Verifica o tipo de asteroide que colidiu e salta para a respetiva label
+    JMP asteroide_colisao_mineravel
     JMP asteroide_parametros
-    
+
+asteroide_colisao_esquerda:
+    CMP R2, R3
+    JGT asteroide_colisao_direita
+    MOV R9, colisao
+    MOV [R9], R8
+    CALL apaga_boneco
+    MOV R10, DEF_ASTEROIDE_NAO_MINERAVEL        ; Obtém endereço da tabela correspondente ao asteroide nao mineravel
+    CMP R0, R10
+    JZ asteroide_colisao_nao_mineravel          ; Verifica o tipo de asteroide que colidiu e salta para a respetiva label
+    JMP asteroide_colisao_mineravel
+    JMP asteroide_parametros
+
+asteroide_colisao_direita:
+    MOV R9, colisao
+    MOV [R9 + 4], R8
+    CALL apaga_boneco
+    MOV R10, DEF_ASTEROIDE_NAO_MINERAVEL        ; Obtém endereço da tabela correspondente ao asteroide nao mineravel
+    CMP R0, R10
+    JZ asteroide_colisao_nao_mineravel          ; Verifica o tipo de asteroide que colidiu e salta para a respetiva label
+    JMP asteroide_colisao_mineravel
+    JMP asteroide_parametros
+
+asteroide_colisao_mineravel:
+    MOV R0, DEF_ASTEROIDE_MINERAVEL_EXPLOSAO    ; Obtém endereço da tabela correspondente à animação de explosão do asteroide mineravel
+    MOV R1, 3                                   ; Reproduzir som colisao mineravel
+    MOV [REPRODUZ_SOM], R1 
+    CALL desenha_boneco                         ; Rotina para desenhar explosao
+    MOV R3, [relogio_asteroide]                 ; Bloqueia neste lock até que a interrupção do asteróide ative
+    CALL apaga_boneco                           ; Rotina para apagar explosão
+    JMP asteroide_parametros                    ; Reseta processo
+
+asteroide_colisao_nao_mineravel:
+    MOV R0, DEF_ASTEROIDE_NAO_MINERAVEL_EXPLOSAO ; Obtém endereço da tabela correspondente à animação de explosão do asteroide nao mineravel
+    MOV R1, 1                                    ; Reproduzir som colisao nao mineravel
+    MOV [REPRODUZ_SOM], R1 
+    CALL desenha_boneco                         ; Rotina para desenhar explosao
+    MOV R3, [relogio_asteroide]                 ; Bloqueia neste lock até que a interrupção do asteróide ative
+    CALL apaga_boneco                           ; Rotina para apagar explosão
+    JMP asteroide_parametros                    ; Reseta processo
+
 asteroide_fim_jogo:
     CALL comando_fim_jogo_inicio
-    JMP asteroide_ciclo
+    MOV R1, 2
+    MOV R2, 2                                   ; reproduzir som colisao nao mineravel
+    MOV [REPRODUZ_SOM], R2 
+    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1      ; Seleciona cenário de GAME OVER
+    JMP asteroide_parametros
 
 ; **********************************************************************
 ; Processo
@@ -489,6 +651,7 @@ nave_ciclo:
     CMP R10, JOGAVEL             ; Se estiver ativo, salta para o processo
     JZ nave_anim
     MOV R11, [pausa]       ; Se estiver inativo, bloqueia até que volte a estar ativo
+
 nave_anim:
     CMP R4, 1
     JZ nave_sprite_2
@@ -520,61 +683,74 @@ nave_sprite_2:
 PROCESS SP_init_sonda  ; indicação de que a rotina que se segue é um processo,
                         ; com indicação do valor para inicializar o SP
 
-sonda:   
+sonda:
+
+sonda_SP_init:
+    MOV R0, TAMANHO_PILHA
+    MUL R0, R11
+    SUB SP, R0
+    MOV R7, R11
+    SHL R11, 1
+
+sonda_inicio:   
     MOV R1, 0
-    MOV [RESTART], R1
+    MOV R5, RESTART_SONDAS
+    MOV [R5 + R11], R1
     MOV	R0, DEF_SONDA			    ; endereço da tabela que define a sonda
-    MOV R4, 14                      ; linha da posição máxima
+    MOV R4, LINHA_MAX_SONDA         ; linha da posição máxima
 
 sonda_input:
     MOV R1, -1
-    MOV [LINHA_SONDA], R1
-    MOV [COLUNA_SONDA], R1 
+    MOV R9, LINHA_SONDA
+    MOV [R9 + R11], R1
+    MOV R9, COLUNA_SONDA
+    MOV [R9 + R11], R1 
     MOV R5, [tecla_carregada]       ; bloqueia neste LOCK até uma tecla ser carregada
-    MOV R8, 2
-    CMP R5, R8
-    JGT sonda_input
-
+    CMP R5, R7
+    JNZ sonda_input
 
 sonda_energia:
     MOV R1, [VALOR_DISPLAY]
     MOV R2, 5
     CALL altera_energia_inicio      ; Diminui valor da energia por sonda disparada
 
-    
 sonda_spawn:
     MOV R8, 4
-    MUL R5, R8                       ; cada endereço da tabela tem 2 WORDS (4 bytes)
+    MUL R5, R8                      ; cada endereço da tabela tem 2 WORDS (4 bytes)
     MOV R9, SPAWN_SONDA
     MOV R2, [R9 + R5]               ; coluna de spawn da sonda
     ADD R5, 2                       ; o incremento da sonda encontra-se na segunda WORD do endereço
     MOV R6, [R9 + R5]               ; incremento
     MOV R1, 26                      ; linha de spawn da sonda
-
-
+    MOV R0, 0                       ; reproduzir som de disparo
+    MOV [REPRODUZ_SOM], R0 
 
 sonda_ciclo:
-    CALL    desenha_boneco     ; desenha a sonda na sua posição atual
-    MOV R3, [relogio_sonda]     ; lê o LOCK e bloqueia até a interrupção escrever nele
+    CALL    desenha_boneco          ; desenha a sonda na sua posição atual
+    MOV R3, [relogio_sonda]         ; lê o LOCK e bloqueia até a interrupção escrever nele
                                     ; Quando bloqueia, passa o controlo para outro processo
                                     ; Como não há valor a transmitir, o registo pode ser um qualquer
-    MOV R10, [ESTADO_JOGO] ; Obtêm o estado atual do jogo
-    CMP R10, JOGAVEL             ; Se estiver ativo, salta para o processo
+    MOV R10, [ESTADO_JOGO]          ; Obtêm o estado atual do jogo
+    CMP R10, JOGAVEL                ; Se estiver ativo, salta para o processo
     JZ sonda_movimento
-    MOV R11, [pausa]       ; Se estiver inativo, bloqueia até que volte a estar ativo
+    MOV R9, [pausa]                ; Se estiver inativo, bloqueia até que volte a estar ativo
 
 sonda_movimento:
-    CALL    apaga_boneco        ; apaga a sonda da sua posição corrente
-    MOV R11, [RESTART]
-    CMP R11, 1
-    JZ sonda
-    SUB R1, 1                 ; para desenhar sonda na linha seguinte
-    ADD  R2, R6                 ; para desenhar a sonda na próxima coluna
-    CMP  R1, R4                 ; verifica máximo movimentos
+    CALL apaga_boneco            ; apaga a sonda da sua posição corrente
+    MOV  R5, RESTART_SONDAS
+    MOV  R9, [R5 + R11]
+    CMP  R9, TRUE
+    JZ   sonda_inicio
+    SUB  R1, 1                       ; para desenhar sonda na linha seguinte
+    ADD  R2, R6                     ; para desenhar a sonda na próxima coluna
+    CMP  R1, R4                     ; verifica máximo movimentos
     JZ   sonda_input
-    MOV  [LINHA_SONDA], R1      ; Atualização da posição da sonda na memória
-    MOV  [COLUNA_SONDA], R2
-    MOV  R8, [colisao]
+    MOV  R9, LINHA_SONDA
+    MOV  [R9 + R11], R1      ; Atualização da posição da sonda na memória
+    MOV  R9, COLUNA_SONDA
+    MOV  [R9 + R11], R2
+    MOV  R9, colisao
+    MOV  R8, [R9 + R11]
     MOV  R3, 1
     CMP  R8, R3
     JZ   sonda_destruida
@@ -583,7 +759,8 @@ sonda_movimento:
 
 sonda_destruida:
     MOV  R8, 0
-    MOV  [colisao], R8
+    MOV  R9, colisao
+    MOV  [R9 + R11], R8
     JMP  sonda_input
 
 ; ***********************************************************************
@@ -780,6 +957,8 @@ testa_limites_inicio:
     PUSH R2
     PUSH R3
     PUSH R4
+    PUSH R5
+    PUSH R6
     MOV  R3, R1
     MOV  R4, R2
 
@@ -810,25 +989,39 @@ testa_limites_fim_jogo:
     JMP testa_limites_ret
 
 testa_limites_sonda:
+    MOV R5, 4
+
+testa_limites_sonda_ciclo:
     MOV R1, R3
     MOV R2, R4
-    MOV R0, [LINHA_SONDA]
+    MOV R6, LINHA_SONDA
+    MOV R0, [R6 + R5]
     CMP R1, R0
-    JGT testa_limites_ret
+    JGT testa_limites_proxima_sonda
     ADD R1, ALTURA_ASTEROIDE
     CMP R1, R0
-    JLT testa_limites_ret
-    MOV R0, [COLUNA_SONDA]
+    JLT testa_limites_proxima_sonda
+    MOV R6, COLUNA_SONDA
+    MOV R0, [R6 + R5]
     CMP R2, R0
-    JGT testa_limites_ret
+    JGT testa_limites_proxima_sonda
     ADD R2, LARGURA_ASTEROIDE
     CMP R2, R0
-    JLT testa_limites_ret
+    JLT testa_limites_proxima_sonda
+    JMP testa_limites_colisao
+
+testa_limites_proxima_sonda:
+    SUB R5, 2
+    CMP R5, 0
+    JGE testa_limites_sonda_ciclo
+    JMP testa_limites_ret
 
 testa_limites_colisao:
     MOV R8, 2
 
 testa_limites_ret:
+    POP R6
+    POP R5
     POP R4
     POP R3
     POP R2

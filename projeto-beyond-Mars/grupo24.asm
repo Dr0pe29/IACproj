@@ -3,7 +3,7 @@
 ; * Modulo:    projeto.asm
 ; * Grupo: 24
 ; * Pedro Macedo 107301
-; * João Caçador 106439
+; * João Caçador 107301
 ; * João Alves 106439
 ; *********************************************************************
 
@@ -286,6 +286,8 @@ comando_inicio:
     CALL comando_fim_jogo_inicio
 
 comando_inicio_reset:
+    MOV R6, 5                           ; reproduzir som de stop
+    MOV [REPRODUZ_SOM], R6
     JMP  comando_inicio               
 
 comando_comeca_jogo:
@@ -303,6 +305,8 @@ comando_comeca_jogo:
     MOV  [R4], R1                       ; Altera o valor no display
     CALL comando_unpause_init           ; Altera o estado de jogo para jogável
     CMP R3, FIM
+    MOV R6, 7                           ; reproduzir som de start
+    MOV [REPRODUZ_SOM], R6
     JNZ comando_inicio                  ; Se não for um restart volta ao programa principal
 
 comando_comeca_jogo_restart:
@@ -337,6 +341,8 @@ comando_altera_estado_inativo:
     CMP R1, R2
     JNZ comando_inicio                  ; Se não estiver no estado jogável, volta para o progama principal
     MOV [SELECIONA_CENARIO_SOBREPOSTO], R1 ; Seleciona cenário correspondente ao estado de pausa
+    MOV R6, 6                           ; reproduzir som de pause
+    MOV [REPRODUZ_SOM], R6 
     CALL comando_pause_init             ; Chama rotina de pausa
     JMP comando_inicio 
 
@@ -346,6 +352,8 @@ comando_altera_estado_ativo:
     CMP R1, R2
     JNZ comando_inicio                  ; Se não estiver no estado pausa, volta para o progama principal
     MOV  [APAGA_CENARIO_SOBREPOSTO], R1 ; Apaga cenário correspondente ao estado de pausa
+    MOV R6, 7                           ; reproduzir som de start
+    MOV [REPRODUZ_SOM], R6
     CALL comando_unpause_init           ; Chama rotina de sair de pausa
     JMP comando_inicio
 
@@ -462,11 +470,13 @@ energia_init:
 
 energia_fim_jogo:
     MOV R1, 0
-    MOV  R4, DISPLAYS               ; endereço do periférico dos displays
-    MOV  [R4], R1                   ; Altera o valor no display
-    CALL comando_fim_jogo_inicio    ; Altera o estado para fim
-    MOV R1, 2
-    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1 ; Seleciona o cenário de game over
+    MOV  R4, DISPLAYS                       ; endereço do periférico dos displays
+    MOV  [R4], R1                           ; Altera o valor no display
+    CALL comando_fim_jogo_inicio            ; Altera o estado para fim
+    MOV R1, 5
+    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1  ; Seleciona o cenário de game over
+    MOV R0, 4                               ; reproduzir som game over 0 energia
+    MOV [REPRODUZ_SOM], R0
     JMP energia
 
 ; **********************************************************************
@@ -592,7 +602,16 @@ asteroide_colisao_direita:
 
 asteroide_colisao_mineravel:
     MOV R0, DEF_ASTEROIDE_MINERAVEL_EXPLOSAO    ; Obtém endereço da tabela correspondente à animação de explosão do asteroide mineravel
+    MOV R9, 3                                   ; Reproduzir som colisao mineravel
+    MOV [REPRODUZ_SOM], R9 
     CALL desenha_boneco                         ; Rotina para desenhar explosao
+    MOV R1, [VALOR_DISPLAY]
+    MOV R2, -25                                 ;
+    CALL altera_energia_inicio                  ; Diminui valor da energia por sonda disparada
+    MOV R9, LINHA_ASTEROIDE
+    MOV  R1, [R9 + R11]
+    MOV R9, COLUNA_ASTEROIDE
+    MOV  R2, [R9 + R11]
     MOV R3, [relogio_asteroide]                 ; Bloqueia neste lock até que a interrupção do asteróide ative
     CALL apaga_boneco                           ; Rotina para apagar explosão
     JMP asteroide_parametros                    ; Reseta processo
@@ -600,14 +619,19 @@ asteroide_colisao_mineravel:
 asteroide_colisao_nao_mineravel:
     MOV R0, DEF_ASTEROIDE_NAO_MINERAVEL_EXPLOSAO ; Obtém endereço da tabela correspondente à animação de explosão do asteroide nao mineravel
     CALL desenha_boneco                         ; Rotina para desenhar explosao
+    MOV R1, 1                                    ; Reproduzir som colisao nao mineravel
+    MOV [REPRODUZ_SOM], R1
+    MOV R9, LINHA_ASTEROIDE
+    MOV  R1, [R9 + R11]
     MOV R3, [relogio_asteroide]                 ; Bloqueia neste lock até que a interrupção do asteróide ative
     CALL apaga_boneco                           ; Rotina para apagar explosão
     JMP asteroide_parametros                    ; Reseta processo
 
 asteroide_fim_jogo:
     CALL comando_fim_jogo_inicio
-    MOV R1, 2
-    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1      ; Seleciona cenário de GAME OVER
+    MOV R2, 2                                   ; reproduzir som colisao nao mineravel
+    MOV [REPRODUZ_SOM], R2 
+    MOV [SELECIONA_CENARIO_SOBREPOSTO], R2      ; Seleciona cenário de GAME OVER
     JMP asteroide_parametros
 
 ; **********************************************************************
@@ -684,10 +708,6 @@ sonda_inicio:
     MOV R4, LINHA_MAX_SONDA         ; linha da posição máxima
 
 sonda_input:
-    MOV  R5, RESTART_SONDAS
-    MOV  R9, [R5 + R11]
-    CMP  R9, TRUE
-    JZ   sonda_inicio
     MOV R1, -1
     MOV R9, LINHA_SONDA
     MOV [R9 + R11], R1
@@ -697,6 +717,11 @@ sonda_input:
     CMP R5, R7
     JNZ sonda_input
 
+sonda_energia:
+    MOV R1, [VALOR_DISPLAY]
+    MOV R2, 5
+    CALL altera_energia_inicio      ; Diminui valor da energia por sonda disparada
+
 sonda_spawn:
     MOV R8, 4
     MUL R5, R8                      ; cada endereço da tabela tem 2 WORDS (4 bytes)
@@ -705,6 +730,9 @@ sonda_spawn:
     ADD R5, 2                       ; o incremento da sonda encontra-se na segunda WORD do endereço
     MOV R6, [R9 + R5]               ; incremento
     MOV R1, 26                      ; linha de spawn da sonda
+    MOV R0, 0                       ; reproduzir som de disparo
+    MOV [REPRODUZ_SOM], R0 
+    MOV R0, DEF_SONDA
 
 sonda_ciclo:
     CALL    desenha_boneco          ; desenha a sonda na sua posição atual
@@ -718,6 +746,10 @@ sonda_ciclo:
 
 sonda_movimento:
     CALL apaga_boneco            ; apaga a sonda da sua posição corrente
+    MOV  R5, RESTART_SONDAS
+    MOV  R9, [R5 + R11]
+    CMP  R9, TRUE
+    JZ   sonda_inicio
     SUB  R1, 1                       ; para desenhar sonda na linha seguinte
     ADD  R2, R6                     ; para desenhar a sonda na próxima coluna
     CMP  R1, R4                     ; verifica máximo movimentos
