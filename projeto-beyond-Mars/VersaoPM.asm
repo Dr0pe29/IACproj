@@ -485,27 +485,27 @@ asteroide_colisao:
     MOV R8, 1
     MOV [colisao], R8
     CALL apaga_boneco
-    MOV R10, DEF_ASTEROIDE_NAO_MINERAVEL
+    MOV R10, DEF_ASTEROIDE_NAO_MINERAVEL        ; Obtém endereço da tabela correspondente ao asteroide nao mineravel
     CMP R0, R10
-    JZ asteroide_colisao_nao_mineravel
+    JZ asteroide_colisao_nao_mineravel          ; Verifica o tipo de asteroide que colidiu e salta para a respetiva label
 asteroide_colisao_mineravel:
-    MOV R0, DEF_ASTEROIDE_MINERAVEL_EXPLOSAO
-    CALL desenha_boneco
-    MOV R3, [relogio_asteroide]
-    CALL apaga_boneco
-    JMP asteroide_parametros
+    MOV R0, DEF_ASTEROIDE_MINERAVEL_EXPLOSAO    ; Obtém endereço da tabela correspondente à animação de explosão do asteroide mineravel
+    CALL desenha_boneco                         ; Rotina para desenhar explosao
+    MOV R3, [relogio_asteroide]                 ; Bloqueia neste lock até que a interrupção do asteróide ative
+    CALL apaga_boneco                           ; Rotina para apagar explosão
+    JMP asteroide_parametros                    ; Reseta processo
 asteroide_colisao_nao_mineravel:
-    MOV R0, DEF_ASTEROIDE_NAO_MINERAVEL_EXPLOSAO
-    CALL desenha_boneco
-    MOV R3, [relogio_asteroide]
-    CALL apaga_boneco
-    JMP asteroide_parametros
+    MOV R0, DEF_ASTEROIDE_NAO_MINERAVEL_EXPLOSAO ; Obtém endereço da tabela correspondente à animação de explosão do asteroide nao mineravel
+    CALL desenha_boneco                         ; Rotina para desenhar explosao
+    MOV R3, [relogio_asteroide]                 ; Bloqueia neste lock até que a interrupção do asteróide ative
+    CALL apaga_boneco                           ; Rotina para apagar explosão
+    JMP asteroide_parametros                    ; Reseta processo
     
 asteroide_fim_jogo:
-    CALL comando_fim_jogo_inicio
+    CALL comando_fim_jogo_inicio                ; Rotina para mudar estado do jogo para FIM
     MOV R1, 2
-    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1
-    JMP asteroide_ciclo
+    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1      ; Seleciona cenário de GAME OVER
+    JMP asteroide_ciclo                         ; Reseta processo
 
 ; **********************************************************************
 ; Processo
