@@ -676,7 +676,7 @@ sonda_SP_init:
     MOV R7, R11
     SHL R11, 1
 
-sonda_inicio:   
+sonda_inicio: 
     MOV R1, 0
     MOV R5, RESTART_SONDAS
     MOV [R5 + R11], R1
@@ -684,6 +684,10 @@ sonda_inicio:
     MOV R4, LINHA_MAX_SONDA         ; linha da posição máxima
 
 sonda_input:
+    MOV  R5, RESTART_SONDAS
+    MOV  R9, [R5 + R11]
+    CMP  R9, TRUE
+    JZ   sonda_inicio
     MOV R1, -1
     MOV R9, LINHA_SONDA
     MOV [R9 + R11], R1
@@ -714,10 +718,6 @@ sonda_ciclo:
 
 sonda_movimento:
     CALL apaga_boneco            ; apaga a sonda da sua posição corrente
-    MOV  R5, RESTART_SONDAS
-    MOV  R9, [R5 + R11]
-    CMP  R9, TRUE
-    JZ   sonda_inicio
     SUB  R1, 1                       ; para desenhar sonda na linha seguinte
     ADD  R2, R6                     ; para desenhar a sonda na próxima coluna
     CMP  R1, R4                     ; verifica máximo movimentos
