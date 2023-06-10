@@ -255,6 +255,7 @@ comando_comeca_jogo:
     CALL comando_unpause_init           ; Altera o estado de jogo para jogável
     CMP R3, FIM
     JNZ comando_inicio                  ; Se não for um restart volta ao programa principal
+
 comando_comeca_jogo_restart:
     MOV R1, 1
     MOV [RESTART], R1                   ; Se for um restart, altera a respetiva variável
