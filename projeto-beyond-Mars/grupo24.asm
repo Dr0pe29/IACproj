@@ -69,6 +69,14 @@ DEF_ASTEROIDE_MINERAVEL:    ; tabela que define o asteroide mineravel
     WORD		VERDE, VERDE, VERDE, VERDE, VERDE
     WORD		0, VERDE, VERDE, VERDE, 0
 
+DEF_ASTEROIDE_MINERAVEL_EXPLOSAO:    ; tabela que define o asteroide mineravel
+    WORD        5, 5        ; largura e altura do asteroide
+    WORD        ROSA, ROSA, ROSA, ROSA, ROSA
+    WORD        ROSA, 0, 0, 0, ROSA
+    WORD        ROSA, 0, ROSA, 0, ROSA
+    WORD        ROSA, 0, 0, 0, ROSA
+    WORD        ROSA, ROSA, ROSA, ROSA, ROSA
+
 DEF_ASTEROIDE_NAO_MINERAVEL:    ; tabela que define o asteroide nao mineravel
 	WORD		5, 5        ; largura e altura do asteroide
 	WORD		VERMELHO, 0, VERMELHO, 0, VERMELHO
@@ -76,6 +84,14 @@ DEF_ASTEROIDE_NAO_MINERAVEL:    ; tabela que define o asteroide nao mineravel
     WORD		VERMELHO, VERMELHO, 0, VERMELHO, VERMELHO
     WORD		0, VERMELHO, VERMELHO, VERMELHO, 0
     WORD		VERMELHO, 0, VERMELHO, 0, VERMELHO
+
+DEF_ASTEROIDE_NAO_MINERAVEL_EXPLOSAO:    ; tabela que define o asteroide nao mineravel
+    WORD        5, 5        ; largura e altura do asteroide
+    WORD        0, CIANO, 0, CIANO, 0
+    WORD        CIANO, 0, CIANO, 0, CIANO
+    WORD        0, CIANO, 0, CIANO, 0
+    WORD        CIANO, 0, CIANO, 0, CIANO
+    WORD        0, CIANO, 0, CIANO, 0
 
 DEF_SONDA:					; tabela que define a sonda
 	WORD		1, 1        ; largura e altura da sonda
@@ -344,7 +360,7 @@ comando_fim_jogo_altera:
     CMP R1, R2
     JZ comando_inicio                       ; Se estiver no estado inicial, volta para o progama principal
     CALL comando_pause_init                 ; Chama rotina de pausa
-    MOV R1, 2
+    MOV R1, 4
     MOV [SELECIONA_CENARIO_SOBREPOSTO], R1  ; Seleciona cenário de fim de jogo
     MOV R1, FIM
     MOV [ESTADO_JOGO], R1                   ; Coloca o estado do jogo com o valor correspondente ao fim
@@ -439,6 +455,18 @@ energia_init:
     MOV R1, [VALOR_DISPLAY] ; Obtém valor atual da energia
     MOV R2, 3               ; Valor de decremento da energia (3%)
     CALL altera_energia_inicio
+    MOV R1, [VALOR_DISPLAY] ; Obtém valor atual da energia
+    CMP R1, 0 
+    JLE energia_fim_jogo    ; Se for 0, dá game over
+    JMP energia
+
+energia_fim_jogo:
+    MOV R1, 0
+    MOV  R4, DISPLAYS               ; endereço do periférico dos displays
+    MOV  [R4], R1                   ; Altera o valor no display
+    CALL comando_fim_jogo_inicio    ; Altera o estado para fim
+    MOV R1, 2
+    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1 ; Seleciona o cenário de game over
     JMP energia
 
 ; **********************************************************************
@@ -533,6 +561,11 @@ asteroide_colisao_meio:
     JNZ asteroide_colisao_esquerda
     MOV R9, colisao
     MOV [R9 + 2], R8
+    CALL apaga_boneco
+    MOV R10, DEF_ASTEROIDE_NAO_MINERAVEL        ; Obtém endereço da tabela correspondente ao asteroide nao mineravel
+    CMP R0, R10
+    JZ asteroide_colisao_nao_mineravel          ; Verifica o tipo de asteroide que colidiu e salta para a respetiva label
+    JMP asteroide_colisao_mineravel
     JMP asteroide_parametros
 
 asteroide_colisao_esquerda:
@@ -540,15 +573,41 @@ asteroide_colisao_esquerda:
     JGT asteroide_colisao_direita
     MOV R9, colisao
     MOV [R9], R8
+    CALL apaga_boneco
+    MOV R10, DEF_ASTEROIDE_NAO_MINERAVEL        ; Obtém endereço da tabela correspondente ao asteroide nao mineravel
+    CMP R0, R10
+    JZ asteroide_colisao_nao_mineravel          ; Verifica o tipo de asteroide que colidiu e salta para a respetiva label
+    JMP asteroide_colisao_mineravel
     JMP asteroide_parametros
 
 asteroide_colisao_direita:
     MOV R9, colisao
     MOV [R9 + 4], R8
+    CALL apaga_boneco
+    MOV R10, DEF_ASTEROIDE_NAO_MINERAVEL        ; Obtém endereço da tabela correspondente ao asteroide nao mineravel
+    CMP R0, R10
+    JZ asteroide_colisao_nao_mineravel          ; Verifica o tipo de asteroide que colidiu e salta para a respetiva label
+    JMP asteroide_colisao_mineravel
     JMP asteroide_parametros
+
+asteroide_colisao_mineravel:
+    MOV R0, DEF_ASTEROIDE_MINERAVEL_EXPLOSAO    ; Obtém endereço da tabela correspondente à animação de explosão do asteroide mineravel
+    CALL desenha_boneco                         ; Rotina para desenhar explosao
+    MOV R3, [relogio_asteroide]                 ; Bloqueia neste lock até que a interrupção do asteróide ative
+    CALL apaga_boneco                           ; Rotina para apagar explosão
+    JMP asteroide_parametros                    ; Reseta processo
+
+asteroide_colisao_nao_mineravel:
+    MOV R0, DEF_ASTEROIDE_NAO_MINERAVEL_EXPLOSAO ; Obtém endereço da tabela correspondente à animação de explosão do asteroide nao mineravel
+    CALL desenha_boneco                         ; Rotina para desenhar explosao
+    MOV R3, [relogio_asteroide]                 ; Bloqueia neste lock até que a interrupção do asteróide ative
+    CALL apaga_boneco                           ; Rotina para apagar explosão
+    JMP asteroide_parametros                    ; Reseta processo
 
 asteroide_fim_jogo:
     CALL comando_fim_jogo_inicio
+    MOV R1, 2
+    MOV [SELECIONA_CENARIO_SOBREPOSTO], R1      ; Seleciona cenário de GAME OVER
     JMP asteroide_parametros
 
 ; **********************************************************************
